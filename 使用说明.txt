@@ -1,7 +1,7 @@
 ========================================
 ⚠️ 重要声明
 ========================================
-本软件开源于: https://github.com/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice
+本软件开源于: https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice
 开发团队: AI汉化组 (https://t.me/transWithAI)
 ========================================
 

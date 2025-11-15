@@ -27,12 +27,18 @@
     "initializing_vad": "正在初始化增强VAD模型...",
     "vad_activated": "✓ 增强VAD已激活（阈值={threshold}）",
     "loading_whisper": "正在加载Whisper模型...",
+    "model_precision": "模型运行精度：{precision}，设备：{device}",
     "translating": "正在翻译（{current}/{total}）：{path}",
     "duration": "时长：{duration}",
     "duration_filtered": "时长：{original} → {filtered}（检测到 {percent} 语音）",
     "writing": "正在写入：{path}",
     "vad_deactivated": "VAD注入已停用",
-    "no_files_found": "未找到要翻译的文件"
+    "no_files_found": "未找到要翻译的文件",
+    "logging_to_file": "日志文件：{path}",
+    "program_version": "程序版本：{version}",
+    "python_version": "Python版本：{version}",
+    "platform": "运行平台：{platform}",
+    "arguments": "运行参数：{args}"
   },
 
   "tasks": {

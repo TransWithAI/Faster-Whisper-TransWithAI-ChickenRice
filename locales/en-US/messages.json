@@ -27,12 +27,18 @@
     "initializing_vad": "Initializing enhanced VAD model...",
     "vad_activated": "✓ Enhanced VAD activated (threshold={threshold})",
     "loading_whisper": "Loading Whisper model...",
+    "model_precision": "Model running with precision: {precision} on device: {device}",
     "translating": "Translating ({current}/{total}): {path}",
     "duration": "Duration: {duration}",
     "duration_filtered": "Duration: {original} → {filtered} ({percent} speech detected)",
     "writing": "Writing: {path}",
     "vad_deactivated": "VAD injection deactivated",
-    "no_files_found": "No files found to translate"
+    "no_files_found": "No files found to translate",
+    "logging_to_file": "Logging to file: {path}",
+    "program_version": "Program version: {version}",
+    "python_version": "Python version: {version}",
+    "platform": "Platform: {platform}",
+    "arguments": "Arguments: {args}"
   },
 
   "tasks": {

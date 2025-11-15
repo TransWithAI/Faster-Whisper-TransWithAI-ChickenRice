@@ -1,6 +1,6 @@
 # 🎙️ Faster Whisper TransWithAI ChickenRice
 
-[![GitHub Release](https://img.shields.io/github/v/release/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice)](https://github.com/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice)](https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 高性能音视频转录和翻译工具 - 基于 Faster Whisper 和音声优化 VAD 的日文转中文优化版本
@@ -11,7 +11,7 @@ High-performance audio/video transcription and translation tool - Japanese-to-Ch
 
 > **本软件为开源软件 / This software is open source**
 >
-> 🔗 **开源地址 / Repository**: https://github.com/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice
+> 🔗 **开源地址 / Repository**: https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice
 >
 > 👥 **开发团队 / Development Team**: AI汉化组 (https://t.me/transWithAI)
 >
@@ -60,7 +60,7 @@ High-performance audio/video transcription and translation tool - Japanese-to-Ch
 
 ### 2. 下载对应版本 / Download
 
-从 [Releases](https://github.com/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice/releases) 页面下载对应版本
+从 [Releases](https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice/releases) 页面下载对应版本
 
 ### 3. 使用方法 / Usage
 

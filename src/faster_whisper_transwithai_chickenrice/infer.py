@@ -382,6 +382,7 @@ class Inference:
 
         try:
             model = WhisperModel(self.model_name_or_path, device=self.device, compute_type=self.compute_type)
+            logger.info(_("info.model_precision").format(precision=self.compute_type, device=self.device))
 
             for i, task in enumerate(tasks):
                 logger.info(_("info.translating", current=i + 1, total=len(tasks), path=task.audio_path))
@@ -708,7 +709,7 @@ def main():
     print("=" * 70)
     print("⚠️  重要声明 / IMPORTANT NOTICE")
     print("=" * 70)
-    print("本软件开源于: https://github.com/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice")
+    print("本软件开源于: https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice")
     print("开发团队: AI汉化组 (https://t.me/transWithAI)")
     print("任何第三方非免费下载均为智商税")
     print("=" * 70)
@@ -737,6 +738,23 @@ def main():
 
     # Normal operation
     logger.setLevel(args.log_level)
+
+    # Add file logging to latest.log in current working directory
+    # This helps users report issues by providing a log file
+    log_file_path = os.path.join(os.getcwd(), 'latest.log')
+    file_handler = logging.FileHandler(log_file_path, mode='w', encoding='utf-8')
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    file_handler.setLevel(args.log_level)
+
+    # Add file handler to both the main logger and root logger to capture all logs
+    logger.addHandler(file_handler)
+    logging.getLogger().addHandler(file_handler)
+
+    logger.info(_("info.logging_to_file").format(path=log_file_path))
+    logger.info(_("info.program_version").format(version="v1.2"))
+    logger.info(_("info.python_version").format(version=sys.version))
+    logger.info(_("info.platform").format(platform=platform.platform()))
+    logger.info(_("info.arguments").format(args=vars(args)))
 
     if len(args.base_dirs) == 0:
         logger.warning(_("warnings.drag_files"))

@@ -4,7 +4,7 @@
 
 > **本软件为开源软件**
 >
-> 🔗 **开源地址**: https://github.com/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice
+> 🔗 **开源地址**: https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice
 >
 > 👥 **开发团队**: AI汉化组 (https://t.me/transWithAI)
 
@@ -164,7 +164,19 @@ A: 使用"低显存模式"批处理文件，或切换到CPU模式。
 
 ## 📝 更新日志
 
-### 当前版本特性
+### v1.2 (2025-11-15)
+- ⚡ CPU模式性能优化：添加 int16 计算类型支持，提升CPU处理速度
+- 🎮 GPU兼容性改进：强制使用 float16 替代模型精度 bfloat16，提升显卡兼容性
+- 🔧 精简批处理文件：合并视频翻译功能到主批处理文件中
+- 📝 新增日志记录功能：自动保存运行日志到 latest.log 文件，方便问题反馈
+
+### v1.1 (2025-11-14)
+- 🌐 离线支持改进：预下载 whisper-base 模型文件，实现完全离线运行
+- 📥 自动模型管理：WhisperFeatureExtractor 优先使用本地模型，避免网络超时
+- 🔧 优化下载流程：支持从已有模型文件夹复制，减少重复下载
+- 🚀 提升稳定性：解决网络不稳定环境下的 HuggingFace 连接超时问题
+
+### v1.0 (2025-11-13)
 - 🎯 支持多CUDA版本（11.8/12.2/12.8）
 - 🚀 优化的日文转中文翻译效果（海南鸡v2版本）
 - 🔊 音声优化的VAD语音活动检测
@@ -180,7 +192,7 @@ A: 使用"低显存模式"批处理文件，或切换到CPU模式。
 1. 检查显卡驱动是否为最新版本
 2. 确认选择了正确的CUDA版本
 3. 查看控制台输出的错误信息
-4. 提交Issue到项目仓库: https://github.com/haaswiiliammowsigf/Faster-Whisper-TransWithAI-ChickenRice
+4. 提交Issue到项目仓库: https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice
 
 ### 🔗 官方链接
 - **GitHub仓库**: https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice

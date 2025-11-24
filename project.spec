@@ -259,6 +259,35 @@ for package in ['pyjson5', 'scipy', 'soundfile', 'audioread', 'resampy', 'numba'
     except:
         pass
 
+# Collect setuptools and pkg_resources data to fix missing modules
+try:
+    from PyInstaller.utils.hooks import collect_data_files
+    setuptools_datas = collect_data_files('setuptools')
+    datas += setuptools_datas
+    pkg_resources_datas = collect_data_files('pkg_resources')
+    datas += pkg_resources_datas
+except:
+    pass
+
+# Explicitly collect backports module to fix ModuleNotFoundError
+try:
+    backports_datas, backports_binaries, backports_hiddenimports = collect_all('backports')
+    datas += backports_datas
+    binaries += backports_binaries
+    hiddenimports += backports_hiddenimports
+    print("Collected backports module successfully")
+except Exception as e:
+    print(f"Could not collect backports module: {e}")
+    # Try alternative collection method
+    try:
+        import backports
+        import os
+        backports_path = os.path.dirname(backports.__file__)
+        datas.append((backports_path, 'backports'))
+        print(f"Added backports from path: {backports_path}")
+    except:
+        print("Warning: backports module not found - may need to be installed")
+
 # Add hidden imports for modules that might not be detected automatically
 hiddenimports += [
     'ctranslate2',
@@ -298,6 +327,12 @@ hiddenimports += [
     'packaging.version',
     'packaging.specifiers',
     'packaging.requirements',
+    'backports',  # Fix for ModuleNotFoundError
+    'backports.functools_lru_cache',  # Common backports module
+    'setuptools._vendor.jaraco',  # Include jaraco modules
+    'setuptools._vendor.jaraco.text',
+    'setuptools._vendor.jaraco.context',
+    'setuptools._vendor.jaraco.functools',
     'code',  # For interactive console with --console option
     'readline',  # For better console experience (if available)
     'rlcompleter',  # For tab completion in console

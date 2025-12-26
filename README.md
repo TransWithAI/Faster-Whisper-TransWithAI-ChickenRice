@@ -113,6 +113,10 @@ High-performance audio/video transcription and translation tool - Japanese-to-Ch
 
 参数详情请参考 [Faster Whisper 文档](https://github.com/SYSTRAN/faster-whisper/blob/dea24cbcc6cbef23ff599a63be0bbb647a0b23d6/faster_whisper/transcribe.py#L733)
 
+补充：字幕合并/去重（`segment_merge`）
+- 用于合并一些重复/重叠的片段，减少重复字幕。
+- 如遇到“单条字幕持续时间异常过长”的情况，可调小 `segment_merge.max_gap_ms` 或 `segment_merge.max_duration_ms`，或将 `segment_merge.enabled` 设为 `false`。
+
 ## 🔗 相关链接 / Links
 
 - **Faster Whisper**: https://github.com/SYSTRAN/faster-whisper

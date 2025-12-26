@@ -31,4 +31,20 @@
 
     "repetition_penalty": 1.1,
 
+    // 字幕后处理：合并重复/重叠片段，避免字幕时间轴过长
+    // Subtitle post-processing: merge repeated/overlapping segments and avoid overly long timelines
+    "segment_merge": {
+        // 是否启用合并
+        // Enable merging
+        "enabled": true,
+
+        // 只有当相邻两段之间的间隔 <= max_gap_ms 时才允许合并（避免跨长静音误合并）
+        // Only merge if the gap between adjacent segments is <= max_gap_ms (avoid merging across long silences)
+        "max_gap_ms": 2000,
+
+        // 单条字幕合并后的最大时长（毫秒），超过则停止合并（避免出现几十秒/几分钟的超长字幕）
+        // Maximum duration (ms) of a merged subtitle; stop merging when exceeded
+        "max_duration_ms": 20000,
+    },
+
 }

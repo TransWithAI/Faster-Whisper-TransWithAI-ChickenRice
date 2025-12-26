@@ -61,6 +61,13 @@ GPU模式（仅限NVIDIA显卡）:
 编辑 generation_config.json5 文件调整转录参数。
 参数详情见下方相关项目链接。
 
+补充：字幕合并/去重（segment_merge）
+- 程序会尝试合并一些重复/重叠的识别片段，以减少“嗯嗯啊啊”等导致的重复字幕。
+- 如果遇到“某一句字幕持续时间特别长（跨很久静音也不消失）”的情况，可在 generation_config.json5 里调整：
+  - segment_merge.enabled: 关闭/开启合并
+  - segment_merge.max_gap_ms: 只有当相邻两段间隔很短时才允许合并（建议 500~2000）
+  - segment_merge.max_duration_ms: 单条字幕合并后的最大时长（建议 15000~30000）
+
 注意：通常不需要调整生成参数。如遇到以下情况可尝试调整：
 - 声音过小导致漏翻
 - 时间轴对不上

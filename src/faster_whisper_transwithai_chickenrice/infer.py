@@ -55,6 +55,16 @@ def parse_arguments():
     parser.add_argument('--log_level', type=str, default="DEBUG",
                        help=_("args.log_level"))
 
+    # Subtitle post-processing options
+    parser.add_argument('--merge_segments', dest='merge_segments', action='store_true', default=None,
+                       help="Enable segment merge post-processing (override config file)")
+    parser.add_argument('--no_merge_segments', dest='merge_segments', action='store_false', default=None,
+                       help="Disable segment merge post-processing (override config file)")
+    parser.add_argument('--merge_max_gap_ms', type=int, default=None,
+                       help="Max allowed gap (ms) between segments for merging (override config file)")
+    parser.add_argument('--merge_max_duration_ms', type=int, default=None,
+                       help="Max duration (ms) of a merged segment (override config file)")
+
     # VAD parameter overrides (whisper_vad is always used)
     parser.add_argument('--vad_threshold', type=float, default=None,
                        help=_("args.vad_threshold"))
@@ -177,33 +187,62 @@ class Segment:
     text: str
 
 
-def merge_segments(segments: list[Segment]) -> list[Segment]:
-    segments.sort(key=lambda s: s.start)
+@dataclass(frozen=True)
+class SegmentMergeOptions:
+    enabled: bool = True
+    max_gap_ms: int = 2_000
+    max_duration_ms: int = 20_000
+
+
+def _normalize_merge_text(text: str) -> str:
+    return " ".join(text.strip().split())
+
+
+def merge_segments(segments: list[Segment], options: SegmentMergeOptions | None = None) -> list[Segment]:
+    if options is None:
+        options = SegmentMergeOptions()
+
+    segments = [s for s in segments if s.text.strip()]
+    segments.sort(key=lambda s: (s.start, s.end))
+    if not options.enabled:
+        return segments
+
     merged: list[Segment] = []
-    i = 0
-    while i < len(segments):
-        if segments[i].text.strip() == '':
-            i += 1
+
+    for seg in segments:
+        if not merged:
+            merged.append(seg)
             continue
-        start, end, text = segments[i].start, segments[i].end, segments[i].text
-        j = i + 1
-        while j < len(segments):
-            if segments[j].text.startswith(text):
-                end, text = segments[j].end, segments[j].text
-                j += 1
-                continue
-            break
-        k = j
-        while k < len(segments):
-            if segments[k].text.strip() == '':
-                break
-            if text.endswith(segments[k].text):
-                end = segments[k].end
-                k += 1
-                continue
-            break
-        merged.append(Segment(start=start, end=end, text=text))
-        i = j
+
+        last = merged[-1]
+
+        gap_ms = seg.start - last.end
+        if gap_ms > options.max_gap_ms:
+            merged.append(seg)
+            continue
+
+        merged_duration_ms = seg.end - last.start
+        if merged_duration_ms > options.max_duration_ms:
+            merged.append(seg)
+            continue
+
+        last_norm = _normalize_merge_text(last.text)
+        seg_norm = _normalize_merge_text(seg.text)
+
+        if seg_norm.startswith(last_norm):
+            merged[-1] = Segment(start=last.start, end=max(last.end, seg.end), text=seg.text)
+            continue
+
+        if last_norm.startswith(seg_norm) or last_norm.endswith(seg_norm):
+            merged[-1] = Segment(start=last.start, end=max(last.end, seg.end), text=last.text)
+            continue
+
+        if seg_norm.endswith(last_norm):
+            merged[-1] = Segment(start=last.start, end=max(last.end, seg.end), text=seg.text)
+            continue
+
+        merged.append(seg)
+
     return merged
 
 
@@ -326,14 +365,20 @@ class Inference:
             self.sub_formats.append(k)
 
         # Load generation config
-        self.generation_config = self._load_generation_config(args)
+        self.generation_config, self.segment_merge_options = self._load_generation_config(args)
 
         # Setup VAD injection if requested
         self._setup_vad_injection(args)
 
         logger.info(_("info.generation_config", config=self.generation_config))
+        logger.info(
+            "Segment merge: enabled=%s, max_gap_ms=%s, max_duration_ms=%s",
+            self.segment_merge_options.enabled,
+            self.segment_merge_options.max_gap_ms,
+            self.segment_merge_options.max_duration_ms,
+        )
 
-    def _load_generation_config(self, args) -> Dict[str, Any]:
+    def _load_generation_config(self, args) -> tuple[Dict[str, Any], SegmentMergeOptions]:
         """Load and process generation configuration"""
         # Default config
         config = {
@@ -342,11 +387,21 @@ class Inference:
             "vad_filter": True,
         }
 
+        segment_merge_options = SegmentMergeOptions()
 
         # Load from file if exists
         if os.path.exists(args.generation_config):
             with open(args.generation_config, "r", encoding='utf-8') as f:
                 file_config = pyjson5.decode_io(f)
+                file_segment_merge = file_config.pop("segment_merge", None)
+                if isinstance(file_segment_merge, dict):
+                    segment_merge_options = SegmentMergeOptions(
+                        enabled=bool(file_segment_merge.get("enabled", segment_merge_options.enabled)),
+                        max_gap_ms=int(file_segment_merge.get("max_gap_ms", segment_merge_options.max_gap_ms)),
+                        max_duration_ms=int(
+                            file_segment_merge.get("max_duration_ms", segment_merge_options.max_duration_ms)
+                        ),
+                    )
                 config = dict(**ChainMap(file_config, config))
 
         # Process VAD parameters from config file
@@ -393,7 +448,18 @@ class Inference:
                 config["vad_parameters"] = {}
             config["vad_parameters"]["speech_pad_ms"] = args.vad_speech_pad_ms
 
-        return config
+        # Override segment merge options with command line arguments
+        segment_merge_options = SegmentMergeOptions(
+            enabled=args.merge_segments if args.merge_segments is not None else segment_merge_options.enabled,
+            max_gap_ms=args.merge_max_gap_ms if args.merge_max_gap_ms is not None else segment_merge_options.max_gap_ms,
+            max_duration_ms=(
+                args.merge_max_duration_ms
+                if args.merge_max_duration_ms is not None
+                else segment_merge_options.max_duration_ms
+            ),
+        )
+
+        return config, segment_merge_options
 
     def _vad_progress_callback(self, chunk_idx, total_chunks, device):
         """Progress callback for VAD processing."""
@@ -567,7 +633,7 @@ class Inference:
                     logger.debug(f"[{SubWriter.lrc_timestamp(segment.start)} --> "
                                f"{SubWriter.lrc_timestamp(segment.end)}] {segment.text}")
 
-                segments = merge_segments(segments)
+                segments = merge_segments(segments, self.segment_merge_options)
                 os.makedirs(os.path.dirname(task.sub_prefix), exist_ok=True)
                 for sub_suffix in task.sub_formats:
                     sub_path = f"{task.sub_prefix}.{sub_suffix}"

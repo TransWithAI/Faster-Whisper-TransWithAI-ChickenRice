@@ -9,7 +9,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import subprocess
+<<<<<<< HEAD
 from typing import Dict, List, Optional, Sequence, Tuple
+=======
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 from uuid import uuid4
 
 try:
@@ -27,11 +31,19 @@ except ImportError as exc:  # pragma: no cover
 
 APP_NAME = "Faster-Whisper-TransWithAI-ChickenRice"
 REPO_URL = "https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice"
+<<<<<<< HEAD
 VOLUME_NAME = "Faster_Whisper"
 VOLUME_ROOT = Path("/Faster_Whisper")
 REMOTE_MOUNT = VOLUME_ROOT
 APP_ROOT_REL = Path(APP_NAME)
 SESSION_SUBDIR = Path("sessions")
+=======
+VOLUME_NAME = "agent_volume"
+VOLUME_ROOT = Path("/agent_volume")
+REMOTE_MOUNT = VOLUME_ROOT
+APP_ROOT_REL = Path(APP_NAME)
+SESSION_SUBDIR = APP_ROOT_REL / "sessions"
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 REPO_VOLUME_DIR = VOLUME_ROOT / "repo"
 SUB_FORMATS = "srt,vtt,lrc"
 SUB_SUFFIXES = {".srt", ".vtt", ".lrc"}
@@ -43,6 +55,10 @@ AUDIO_SUFFIXES = {
     ".aac",
     ".ogg",
     ".wma",
+<<<<<<< HEAD
+=======
+    ".mp4",
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     ".mkv",
     ".avi",
     ".mov",
@@ -50,10 +66,14 @@ AUDIO_SUFFIXES = {
     ".flv",
     ".wmv",
 }
+<<<<<<< HEAD
 VIDEO_NEED_CONVERT = {".mp4"}  # 需要用户手动转换的格式
 DEFAULT_GPU_CHOICES = [
     "T4",
     "L4",
+=======
+DEFAULT_GPU_CHOICES = [
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     "L40S",
     "A10G",
     "A100-40GB",
@@ -61,6 +81,11 @@ DEFAULT_GPU_CHOICES = [
     "H100",
     "H200",
     "B200",
+<<<<<<< HEAD
+=======
+    "L4",
+    "T4",
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 ]
 
 
@@ -96,6 +121,7 @@ class UploadManifest:
     remote_output_rel: Path
     local_output_dir: Path
     remote_logs_rel: Path
+<<<<<<< HEAD
     original_filename: Optional[str] = None  # 原始文件名（用于恢复空格）
 
 
@@ -107,6 +133,14 @@ class ScanResult:
 
 class NoAudioFilesError(Exception):
     pass
+=======
+
+
+@dataclass
+class RemoteResult:
+    created_files: Dict[str, List[str]]
+    log_file: Optional[str]
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 
 
 def rel_to_volume_path(path: Path) -> str:
@@ -190,6 +224,19 @@ def ensure_questionary():
 def ask_selection() -> UserSelection:
     ensure_questionary()
 
+<<<<<<< HEAD
+=======
+    run_mode = questionary.select(
+        "选择运行模式：",
+        choices=[
+            Choice(title="一次性运行（modal run）", value="once"),
+            Choice(title="持久化 App（modal deploy）", value="persistent"),
+        ],
+    ).ask()
+    if not run_mode:
+        raise KeyboardInterrupt
+
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     gpu_choice = questionary.select(
         "选择 GPU",
         choices=DEFAULT_GPU_CHOICES,
@@ -250,7 +297,11 @@ def ask_selection() -> UserSelection:
     )
 
     return UserSelection(
+<<<<<<< HEAD
         run_mode="once",
+=======
+        run_mode=run_mode,
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
         gpu_choice=gpu_choice,
         input_path=input_path,
         model_profile=model_profile,
@@ -263,6 +314,7 @@ def ask_selection() -> UserSelection:
     )
 
 
+<<<<<<< HEAD
 def scan_audio_files(path: Path) -> ScanResult:
     """扫描目录，返回音频文件和需要转换的 mp4 文件"""
     audio_files: List[Path] = []
@@ -302,10 +354,28 @@ def validate_audio_path(path: Path) -> ScanResult:
         if not scan_result.audio_files:
             raise NoAudioFilesError(f"输入的文件夹内没有音频文件：{path}")
         return scan_result
+=======
+def iter_audio_files(path: Path) -> List[Path]:
+    files: List[Path] = []
+    for file in path.rglob("*"):
+        if file.is_file() and file.suffix.lower() in AUDIO_SUFFIXES:
+            files.append(file)
+    return files
+
+
+def validate_audio_path(path: Path) -> None:
+    if path.is_file():
+        if path.suffix.lower() not in AUDIO_SUFFIXES:
+            raise ValueError(f"文件 {path} 不属于支持的音/视频格式。")
+    elif path.is_dir():
+        if not iter_audio_files(path):
+            raise ValueError(f"文件夹 {path} 中没有支持的音/视频文件。")
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     else:
         raise ValueError(f"路径 {path} 既不是文件也不是文件夹。")
 
 
+<<<<<<< HEAD
 def upload_single_file(
     volume: modal.Volume,
     selection: UserSelection,
@@ -345,6 +415,47 @@ def upload_single_file(
         local_output_dir=local_output_dir,
         remote_logs_rel=remote_logs_rel,
         original_filename=original_filename,  # 始终记录原始文件名
+=======
+def prepare_upload(
+    volume: modal.Volume,
+    selection: UserSelection,
+) -> UploadManifest:
+    validate_audio_path(selection.input_path)
+    session_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
+    remote_session_rel = SESSION_SUBDIR / session_id
+    remote_logs_rel = remote_session_rel / "logs"
+    remote_inputs_rel: List[Path] = []
+
+    with volume.batch_upload(force=True) as batch:
+        if selection.input_path.is_file():
+            remote_rel = APP_ROOT_REL / selection.input_path.name
+            logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
+            batch.put_file(str(selection.input_path), rel_to_volume_path(remote_rel))
+            remote_inputs_rel.append(remote_rel)
+            remote_output_rel = remote_session_rel
+            local_output_dir = selection.input_path.parent
+            source_type = "file"
+        else:
+            remote_input_dir_rel = remote_session_rel / selection.input_path.name
+            audio_files = iter_audio_files(selection.input_path)
+            for file in audio_files:
+                rel = remote_input_dir_rel / file.relative_to(selection.input_path)
+                logging.info("上传文件 -> %s", rel_to_volume_path(rel))
+                batch.put_file(str(file), rel_to_volume_path(rel))
+            remote_inputs_rel.append(remote_input_dir_rel)
+            remote_output_rel = remote_session_rel / f"{selection.input_path.name}_out"
+            local_output_dir = selection.input_path / f"{selection.input_path.name}_out"
+            source_type = "directory"
+
+    return UploadManifest(
+        session_id=session_id,
+        source_type=source_type,
+        local_source=selection.input_path,
+        remote_inputs_rel=remote_inputs_rel,
+        remote_output_rel=remote_output_rel,
+        local_output_dir=local_output_dir,
+        remote_logs_rel=remote_logs_rel,
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     )
 
 
@@ -401,12 +512,18 @@ def run_remote_pipeline(
     selection: UserSelection,
     manifest: UploadManifest,
     payload: Dict,
+<<<<<<< HEAD
 ) -> Dict:
     logging.info("=== 开始构建 Modal 镜像 ===")
     image = build_modal_image()
     logging.info("✓ 镜像构建完成")
     logging.info("使用 GPU：%s", selection.gpu_choice)
     logging.info("超时时间：%d 分钟", selection.timeout_minutes)
+=======
+) -> RemoteResult:
+    image = build_modal_image()
+    logging.info("使用 GPU：%s", selection.gpu_choice)
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     app = modal.App(APP_NAME)
 
     @app.function(
@@ -419,6 +536,7 @@ def run_remote_pipeline(
     def modal_pipeline(job_payload: Dict) -> Dict:
         return _remote_pipeline(job_payload)
 
+<<<<<<< HEAD
     logging.info("=== 开始远程执行 ===")
     logging.info("正在启动 GPU 容器并执行推理任务...")
     logging.info("（以下为远程容器输出）")
@@ -496,10 +614,19 @@ def process_directory_files(
                 continue  # 继续处理下一个文件
 
     return success_count, fail_count
+=======
+    with app.run():
+        result = modal_pipeline.remote(payload)
+    created = {
+        remote_dir: files for remote_dir, files in result.get("created", {}).items()
+    }
+    return RemoteResult(created_files=created, log_file=result.get("log_file"))
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 
 
 def download_outputs(
     manifest: UploadManifest,
+<<<<<<< HEAD
     result: Dict,
 ) -> None:
     """从远程结果中提取文件内容并写入本地"""
@@ -535,15 +662,52 @@ def download_outputs(
 
 
 def summarize(manifest: UploadManifest, result: Dict) -> None:
+=======
+    result: RemoteResult,
+) -> None:
+    def modal_volume_get(remote_path: str, local_dest: Path) -> None:
+        local_dest.parent.mkdir(parents=True, exist_ok=True)
+        logging.info("下载 %s -> %s", remote_path, local_dest)
+        subprocess.run(
+            ["modal", "volume", "get", VOLUME_NAME, remote_path, str(local_dest)],
+            check=True,
+        )
+
+    for remote_dir, files in result.created_files.items():
+        base_rel = Path(remote_dir.lstrip("/"))
+        for remote_file in files:
+            file_rel = Path(remote_file.lstrip("/"))
+            try:
+                rel_inside_output = file_rel.relative_to(base_rel)
+            except Exception:
+                rel_inside_output = file_rel.name
+            local_path = manifest.local_output_dir / rel_inside_output
+            modal_volume_get(remote_file, local_path)
+
+    if result.log_file:
+        local_log = Path("logs") / Path(Path(result.log_file).name)
+        modal_volume_get(result.log_file, local_log)
+
+
+def summarize(manifest: UploadManifest, result: RemoteResult) -> None:
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     logging.info("=== 运行完成 ===")
     logging.info("Session: %s", manifest.session_id)
     logging.info("源路径: %s", manifest.local_source)
     logging.info("输出路径: %s", manifest.local_output_dir if manifest.source_type == "directory" else manifest.local_source.parent)
+<<<<<<< HEAD
     created_files = result.get("created_files", {})
     if created_files:
         logging.info("新生成文件：")
         for filename in created_files.keys():
             logging.info("  %s", filename)
+=======
+    if result.created_files:
+        logging.info("新生成文件：")
+        for remote_dir, files in result.created_files.items():
+            for file in files:
+                logging.info("  %s", file)
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 
 
 def parse_args() -> argparse.Namespace:
@@ -556,6 +720,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+<<<<<<< HEAD
 def prompt_exit(enabled: bool) -> None:
     if not enabled:
         return
@@ -610,27 +775,59 @@ def main() -> int:
     prompt_exit(not args.non_interactive)
     return exit_code
 
+=======
+def main() -> None:
+    parse_args()
+    log_path = setup_logger()
+    try:
+        selection = ask_selection()
+        volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
+        manifest = prepare_upload(volume, selection)
+        payload = build_job_payload(selection, manifest)
+        result = run_remote_pipeline(volume, selection, manifest, payload)
+        download_outputs(manifest, result)
+        summarize(manifest, result)
+        logging.info("✅ 请在上方输出路径查看字幕结果。")
+    except KeyboardInterrupt:
+        logging.warning("用户中断，未执行任何远程操作。")
+        sys.exit(1)
+    except Exception as exc:
+        logging.exception("运行失败：%s", exc)
+        logging.error("日志见：%s", log_path)
+        sys.exit(1)
+
+
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 def _remote_pipeline(job: Dict) -> Dict:
     import subprocess
     from pathlib import Path
     import os
 
+<<<<<<< HEAD
     # 强制重新加载 Volume，确保看到最新上传的文件
     from modal import Volume
     volume = Volume.from_name("Faster_Whisper")
     volume.reload()
 
+=======
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     def run(cmd: Sequence[str], cwd: Optional[str] = None, env: Optional[dict] = None) -> None:
         print(" ".join(cmd), flush=True)
         subprocess.run(cmd, check=True, cwd=cwd, env=env)
 
     mount_root = Path(job["mount_root"])
     repo_dir = REPO_VOLUME_DIR
+<<<<<<< HEAD
 
     # log 文件放在 session 目录下，而不是 logs 子目录
     session_dir = Path(job["remote_output_dir"])
     session_dir.mkdir(parents=True, exist_ok=True)
     log_file = session_dir / "modal_run.log"
+=======
+    logs_dir = Path(job["remote_logs_dir"])
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_file = logs_dir / "modal_run.log"
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 
     def log(msg: str) -> None:
         line = f"[modal_run] {msg}"
@@ -708,6 +905,7 @@ def _remote_pipeline(job: Dict) -> Dict:
 
     cmd.extend(job["remote_inputs"])
 
+<<<<<<< HEAD
     # 在执行推理前，等待文件同步完成
     import time
     log("等待文件同步...")
@@ -765,13 +963,21 @@ def _remote_pipeline(job: Dict) -> Dict:
 
         log(f"=== 调试信息结束 ===")
         raise
+=======
+    log(f"执行推理命令：{' '.join(cmd)}")
+    run(cmd, cwd=str(repo_dir))
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 
     def to_volume_path(path_str: str) -> str:
         return container_to_volume_path(path_str)
 
+<<<<<<< HEAD
     # 收集生成的文件内容（直接返回，避免 volume 同步问题）
     import base64
     created_files = {}  # {filename: base64_content}
+=======
+    created = {}
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     for target in job["output_targets"]:
         remote_dir = target["remote_dir"]
         after = snapshot(remote_dir)
@@ -781,6 +987,7 @@ def _remote_pipeline(job: Dict) -> Dict:
             for file in after - prev
             if Path(file).suffix.lower() in SUB_SUFFIXES
         )
+<<<<<<< HEAD
         for file_path in new_files:
             file_path = Path(file_path)
             if file_path.exists():
@@ -803,3 +1010,12 @@ def _remote_pipeline(job: Dict) -> Dict:
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(main())
+=======
+        created[to_volume_path(remote_dir)] = [to_volume_path(path) for path in new_files]
+
+    return {"created": created, "log_file": to_volume_path(str(log_file))}
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()
+>>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)

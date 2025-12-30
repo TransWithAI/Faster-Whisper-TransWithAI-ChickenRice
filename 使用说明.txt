@@ -100,13 +100,14 @@ GPU模式（仅限NVIDIA显卡）:
 
 1. 环境配置：
 
-使用现有的 Conda 环境（已包含 modal 支持）：
+使用 Conda 创建轻量级环境（仅需 modal 和 questionary 库）：
 
 ```bash
-conda activate faster-whisper-cu118  # 或 cu122, cu128
+conda env create -f environment-modal.yml
+conda activate faster-whisper-modal
 ```
 
-或在现有环境中手动安装：
+或手动安装：
 ```bash
 pip install modal questionary
 ```
@@ -150,6 +151,7 @@ python modal_infer.py
 ```
 
 程序会交互式询问：
+- 运行模式：一次性运行 或 持久化App
 - GPU 类型：T4（推荐）、A10G、A100、H100 等
 - 模型选择：基础版、海南鸡（日文转中文优化）、自定义模型
 - 输入文件：本地音频文件或文件夹路径

@@ -1,0 +1,21 @@
+# Conda environment for Modal inference (local client only)
+# This environment is for running modal_infer.py locally to submit jobs to Modal
+name: faster-whisper-modal
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python version
+  - python=3.10
+
+  # Core dependencies
+  - pip
+
+  # Pip dependencies
+  - pip:
+      # Modal client for submitting jobs
+      - modal
+
+      # Interactive CLI prompts
+      - questionary

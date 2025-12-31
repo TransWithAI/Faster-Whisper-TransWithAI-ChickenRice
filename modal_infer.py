@@ -27,11 +27,11 @@ except ImportError as exc:  # pragma: no cover
 
 APP_NAME = "Faster-Whisper-TransWithAI-ChickenRice"
 REPO_URL = "https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice"
-VOLUME_NAME = "agent_volume"
-VOLUME_ROOT = Path("/agent_volume")
+VOLUME_NAME = "Faster_Whisper"
+VOLUME_ROOT = Path("/Faster_Whisper")
 REMOTE_MOUNT = VOLUME_ROOT
 APP_ROOT_REL = Path(APP_NAME)
-SESSION_SUBDIR = APP_ROOT_REL / "sessions"
+SESSION_SUBDIR = Path("sessions")
 REPO_VOLUME_DIR = VOLUME_ROOT / "repo"
 SUB_FORMATS = "srt,vtt,lrc"
 SUB_SUFFIXES = {".srt", ".vtt", ".lrc"}
@@ -52,6 +52,8 @@ AUDIO_SUFFIXES = {
     ".wmv",
 }
 DEFAULT_GPU_CHOICES = [
+    "T4",
+    "L4",
     "L40S",
     "A10G",
     "A100-40GB",
@@ -59,8 +61,6 @@ DEFAULT_GPU_CHOICES = [
     "H100",
     "H200",
     "B200",
-    "L4",
-    "T4",
 ]
 
 
@@ -185,16 +185,6 @@ def ensure_questionary():
 def ask_selection() -> UserSelection:
     ensure_questionary()
 
-    run_mode = questionary.select(
-        "选择运行模式：",
-        choices=[
-            Choice(title="一次性运行（modal run）", value="once"),
-            Choice(title="持久化 App（modal deploy）", value="persistent"),
-        ],
-    ).ask()
-    if not run_mode:
-        raise KeyboardInterrupt
-
     gpu_choice = questionary.select(
         "选择 GPU",
         choices=DEFAULT_GPU_CHOICES,
@@ -255,7 +245,7 @@ def ask_selection() -> UserSelection:
     )
 
     return UserSelection(
-        run_mode=run_mode,
+        run_mode="once",
         gpu_choice=gpu_choice,
         input_path=input_path,
         model_profile=model_profile,
@@ -299,7 +289,7 @@ def prepare_upload(
 
     with volume.batch_upload(force=True) as batch:
         if selection.input_path.is_file():
-            remote_rel = APP_ROOT_REL / selection.input_path.name
+            remote_rel = remote_session_rel / selection.input_path.name
             logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
             batch.put_file(str(selection.input_path), rel_to_volume_path(remote_rel))
             remote_inputs_rel.append(remote_rel)
@@ -383,8 +373,11 @@ def run_remote_pipeline(
     manifest: UploadManifest,
     payload: Dict,
 ) -> RemoteResult:
+    logging.info("=== 开始构建 Modal 镜像 ===")
     image = build_modal_image()
+    logging.info("✓ 镜像构建完成")
     logging.info("使用 GPU：%s", selection.gpu_choice)
+    logging.info("超时时间：%d 分钟", selection.timeout_minutes)
     app = modal.App(APP_NAME)
 
     @app.function(
@@ -397,8 +390,14 @@ def run_remote_pipeline(
     def modal_pipeline(job_payload: Dict) -> Dict:
         return _remote_pipeline(job_payload)
 
+    logging.info("=== 开始远程执行 ===")
+    logging.info("正在启动 GPU 容器并执行推理任务...")
+    logging.info("（以下为远程容器输出）")
+    logging.info("-" * 60)
     with app.run():
         result = modal_pipeline.remote(payload)
+    logging.info("-" * 60)
+    logging.info("✓ 远程执行完成")
     created = {
         remote_dir: files for remote_dir, files in result.get("created", {}).items()
     }
@@ -413,7 +412,7 @@ def download_outputs(
         local_dest.parent.mkdir(parents=True, exist_ok=True)
         logging.info("下载 %s -> %s", remote_path, local_dest)
         subprocess.run(
-            ["modal", "volume", "get", VOLUME_NAME, remote_path, str(local_dest)],
+            ["modal", "volume", "get", VOLUME_NAME, remote_path, str(local_dest), "--force"],
             check=True,
         )
 

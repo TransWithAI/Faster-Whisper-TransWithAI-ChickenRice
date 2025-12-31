@@ -428,7 +428,7 @@ def prepare_upload(
 
     with volume.batch_upload(force=True) as batch:
         if selection.input_path.is_file():
-            remote_rel = APP_ROOT_REL / selection.input_path.name
+            remote_rel = remote_session_rel / selection.input_path.name
             logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
             batch.put_file(str(selection.input_path), rel_to_volume_path(remote_rel))
             remote_inputs_rel.append(remote_rel)
@@ -521,7 +521,9 @@ def run_remote_pipeline(
     logging.info("超时时间：%d 分钟", selection.timeout_minutes)
 =======
 ) -> RemoteResult:
+    logging.info("=== 开始构建 Modal 镜像 ===")
     image = build_modal_image()
+    logging.info("✓ 镜像构建完成")
     logging.info("使用 GPU：%s", selection.gpu_choice)
 >>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
     app = modal.App(APP_NAME)
@@ -617,6 +619,8 @@ def process_directory_files(
 =======
     with app.run():
         result = modal_pipeline.remote(payload)
+    logging.info("-" * 60)
+    logging.info("✓ 远程执行完成")
     created = {
         remote_dir: files for remote_dir, files in result.get("created", {}).items()
     }
@@ -669,7 +673,7 @@ def summarize(manifest: UploadManifest, result: Dict) -> None:
         local_dest.parent.mkdir(parents=True, exist_ok=True)
         logging.info("下载 %s -> %s", remote_path, local_dest)
         subprocess.run(
-            ["modal", "volume", "get", VOLUME_NAME, remote_path, str(local_dest)],
+            ["modal", "volume", "get", VOLUME_NAME, remote_path, str(local_dest), "--force"],
             check=True,
         )
 

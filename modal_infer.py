@@ -609,6 +609,11 @@ def _remote_pipeline(job: Dict) -> Dict:
     from pathlib import Path
     import os
 
+    # 强制重新加载 Volume，确保看到最新上传的文件
+    from modal import Volume
+    volume = Volume.from_name("Faster_Whisper")
+    volume.reload()
+
     def run(cmd: Sequence[str], cwd: Optional[str] = None, env: Optional[dict] = None) -> None:
         print(" ".join(cmd), flush=True)
         subprocess.run(cmd, check=True, cwd=cwd, env=env)

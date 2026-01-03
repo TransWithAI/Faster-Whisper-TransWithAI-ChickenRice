@@ -696,7 +696,35 @@ def _remote_pipeline(job: Dict) -> Dict:
     cmd.extend(job["remote_inputs"])
 
     log(f"执行推理命令：{' '.join(cmd)}")
-    run(cmd, cwd=str(repo_dir))
+    try:
+        run(cmd, cwd=str(repo_dir))
+    except subprocess.CalledProcessError as e:
+        # 打印调试信息
+        sessions_dir = mount_root / "sessions"
+        log(f"推理命令执行失败，错误码: {e.returncode}")
+        log(f"=== 调试信息 ===")
+
+        # 统计 sessions 目录下的文件夹数量
+        if sessions_dir.exists():
+            session_folders = [d for d in sessions_dir.iterdir() if d.is_dir()]
+            log(f"sessions 目录下共有 {len(session_folders)} 个文件夹")
+        else:
+            log(f"sessions 目录不存在: {sessions_dir}")
+
+        # 打印待处理文件所在目录的内容
+        for input_path in job["remote_inputs"]:
+            input_dir = Path(input_path).parent
+            log(f"待处理文件目录: {input_dir}")
+            if input_dir.exists():
+                log(f"目录内容:")
+                for item in input_dir.iterdir():
+                    item_type = "目录" if item.is_dir() else "文件"
+                    log(f"  [{item_type}] {item.name}")
+            else:
+                log(f"目录不存在: {input_dir}")
+
+        log(f"=== 调试信息结束 ===")
+        raise
 
     def to_volume_path(path_str: str) -> str:
         return container_to_volume_path(path_str)

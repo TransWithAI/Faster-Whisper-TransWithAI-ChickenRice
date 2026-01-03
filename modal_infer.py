@@ -700,12 +700,12 @@ def _remote_pipeline(job: Dict) -> Dict:
     log("等待文件同步...")
     for input_path in job["remote_inputs"]:
         input_file = Path(input_path)
-        max_wait = 30  # 最多等待 30 秒
+        max_wait = 120  # 最多等待 2 分钟
         waited = 0
         while not input_file.exists() and waited < max_wait:
             time.sleep(1)
             waited += 1
-            if waited % 5 == 0:
+            if waited % 10 == 0:
                 log(f"等待文件出现: {input_path} ({waited}s)")
 
         if input_file.exists():

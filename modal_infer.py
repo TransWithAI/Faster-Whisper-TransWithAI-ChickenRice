@@ -615,9 +615,11 @@ def _remote_pipeline(job: Dict) -> Dict:
 
     mount_root = Path(job["mount_root"])
     repo_dir = REPO_VOLUME_DIR
-    logs_dir = Path(job["remote_logs_dir"])
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    log_file = logs_dir / "modal_run.log"
+
+    # log 文件放在 session 目录下，而不是 logs 子目录
+    session_dir = Path(job["remote_output_dir"])
+    session_dir.mkdir(parents=True, exist_ok=True)
+    log_file = session_dir / "modal_run.log"
 
     def log(msg: str) -> None:
         line = f"[modal_run] {msg}"
@@ -700,13 +702,22 @@ def _remote_pipeline(job: Dict) -> Dict:
     log("等待文件同步...")
     for input_path in job["remote_inputs"]:
         input_file = Path(input_path)
-        max_wait = 120  # 最多等待 2 分钟
+        session_dir = input_file.parent
+        max_wait = 180  # 最多等待 3 分钟
         waited = 0
         while not input_file.exists() and waited < max_wait:
             time.sleep(1)
             waited += 1
             if waited % 10 == 0:
-                log(f"等待文件出现: {input_path} ({waited}s)")
+                # 打印当前 session 目录下的文件
+                if session_dir.exists():
+                    files = list(session_dir.iterdir())
+                    file_names = [f.name for f in files]
+                    log(f"等待文件出现: {input_path} ({waited}s)")
+                    log(f"  当前 {session_dir} 下有 {len(files)} 个文件/文件夹: {file_names}")
+                else:
+                    log(f"等待文件出现: {input_path} ({waited}s)")
+                    log(f"  目录不存在: {session_dir}")
 
         if input_file.exists():
             log(f"文件已就绪: {input_path}")

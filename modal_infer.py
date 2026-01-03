@@ -802,9 +802,19 @@ def summarize(manifest: UploadManifest, result: Dict) -> None:
             try:
                 rel_inside_output = file_rel.relative_to(base_rel)
             except Exception:
-                rel_inside_output = file_rel.name
+                rel_inside_output = Path(file_rel.name)
             local_path = manifest.local_output_dir / rel_inside_output
             modal_volume_get(remote_file, local_path)
+
+            # 如果有原始文件名（包含空格），恢复原始文件名
+            if manifest.original_filename:
+                original_stem = Path(manifest.original_filename).stem
+                safe_stem = original_stem.replace(" ", "_")
+                if local_path.stem == safe_stem:
+                    new_name = original_stem + local_path.suffix
+                    new_path = local_path.parent / new_name
+                    logging.info("恢复原始文件名: %s -> %s", local_path.name, new_name)
+                    local_path.rename(new_path)
 
     if result.log_file:
         local_log = Path("logs") / Path(Path(result.log_file).name)

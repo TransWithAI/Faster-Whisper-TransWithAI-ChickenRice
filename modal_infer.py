@@ -451,6 +451,11 @@ def upload_single_file(
         logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
         batch.put_file(str(audio_file), rel_to_volume_path(remote_rel))
 
+    # 强制同步 Volume，确保文件对容器可见
+    logging.info("等待 Volume 同步...")
+    volume.commit()
+    logging.info("Volume 同步完成")
+
     # 如果指定了 base_dir（文件夹模式），输出到 base_dir；否则输出到文件所在目录
     local_output_dir = base_dir if base_dir else audio_file.parent
 

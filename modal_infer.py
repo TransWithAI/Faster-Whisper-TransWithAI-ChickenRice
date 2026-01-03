@@ -335,6 +335,11 @@ def upload_single_file(
         logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
         batch.put_file(str(audio_file), rel_to_volume_path(remote_rel))
 
+    # 强制同步 Volume，确保文件对容器可见
+    logging.info("等待 Volume 同步...")
+    volume.commit()
+    logging.info("Volume 同步完成")
+
     # 如果指定了 base_dir（文件夹模式），输出到 base_dir；否则输出到文件所在目录
     local_output_dir = base_dir if base_dir else audio_file.parent
 
@@ -694,6 +699,24 @@ def _remote_pipeline(job: Dict) -> Dict:
         cmd.extend(["--max_batch_size", str(job["max_batch_size"])])
 
     cmd.extend(job["remote_inputs"])
+
+    # 在执行推理前，等待文件同步完成
+    import time
+    log("等待文件同步...")
+    for input_path in job["remote_inputs"]:
+        input_file = Path(input_path)
+        max_wait = 30  # 最多等待 30 秒
+        waited = 0
+        while not input_file.exists() and waited < max_wait:
+            time.sleep(1)
+            waited += 1
+            if waited % 5 == 0:
+                log(f"等待文件出现: {input_path} ({waited}s)")
+
+        if input_file.exists():
+            log(f"文件已就绪: {input_path}")
+        else:
+            log(f"警告: 文件未出现: {input_path}")
 
     log(f"执行推理命令：{' '.join(cmd)}")
     try:

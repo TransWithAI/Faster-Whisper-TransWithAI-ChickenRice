@@ -96,6 +96,7 @@ class UploadManifest:
     remote_output_rel: Path
     local_output_dir: Path
     remote_logs_rel: Path
+    original_filename: Optional[str] = None  # 原始文件名（用于恢复空格）
 
 
 @dataclass
@@ -325,8 +326,12 @@ def upload_single_file(
     remote_session_rel = SESSION_SUBDIR / session_id
     remote_logs_rel = remote_session_rel / "logs"
 
+    # 将文件名中的空格替换为下划线，避免路径处理问题
+    original_filename = audio_file.name
+    safe_filename = original_filename.replace(" ", "_")
+
     with volume.batch_upload(force=True) as batch:
-        remote_rel = remote_session_rel / audio_file.name
+        remote_rel = remote_session_rel / safe_filename
         logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
         batch.put_file(str(audio_file), rel_to_volume_path(remote_rel))
 
@@ -341,6 +346,7 @@ def upload_single_file(
         remote_output_rel=remote_session_rel,
         local_output_dir=local_output_dir,
         remote_logs_rel=remote_logs_rel,
+        original_filename=original_filename if original_filename != safe_filename else None,
     )
 
 
@@ -520,9 +526,19 @@ def download_outputs(
             try:
                 rel_inside_output = file_rel.relative_to(base_rel)
             except Exception:
-                rel_inside_output = file_rel.name
+                rel_inside_output = Path(file_rel.name)
             local_path = manifest.local_output_dir / rel_inside_output
             modal_volume_get(remote_file, local_path)
+
+            # 如果有原始文件名（包含空格），恢复原始文件名
+            if manifest.original_filename:
+                original_stem = Path(manifest.original_filename).stem
+                safe_stem = original_stem.replace(" ", "_")
+                if local_path.stem == safe_stem:
+                    new_name = original_stem + local_path.suffix
+                    new_path = local_path.parent / new_name
+                    logging.info("恢复原始文件名: %s -> %s", local_path.name, new_name)
+                    local_path.rename(new_path)
 
     if result.log_file:
         local_log = Path("logs") / Path(Path(result.log_file).name)

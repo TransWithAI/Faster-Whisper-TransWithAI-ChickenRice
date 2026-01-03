@@ -326,9 +326,9 @@ def upload_single_file(
     remote_session_rel = SESSION_SUBDIR / session_id
     remote_logs_rel = remote_session_rel / "logs"
 
-    # 将文件名中的空格替换为下划线，避免路径处理问题
+    # 使用固定文件名避免全角字符等问题
     original_filename = audio_file.name
-    safe_filename = original_filename.replace(" ", "_")
+    safe_filename = "todo" + audio_file.suffix.lower()
 
     with volume.batch_upload(force=True) as batch:
         remote_rel = remote_session_rel / safe_filename
@@ -346,7 +346,7 @@ def upload_single_file(
         remote_output_rel=remote_session_rel,
         local_output_dir=local_output_dir,
         remote_logs_rel=remote_logs_rel,
-        original_filename=original_filename if original_filename != safe_filename else None,
+        original_filename=original_filename,  # 始终记录原始文件名
     )
 
 
@@ -530,11 +530,10 @@ def download_outputs(
             local_path = manifest.local_output_dir / rel_inside_output
             modal_volume_get(remote_file, local_path)
 
-            # 如果有原始文件名（包含空格），恢复原始文件名
+            # 如果有原始文件名，恢复原始文件名
             if manifest.original_filename:
                 original_stem = Path(manifest.original_filename).stem
-                safe_stem = original_stem.replace(" ", "_")
-                if local_path.stem == safe_stem:
+                if local_path.stem == "todo":  # 固定文件名
                     new_name = original_stem + local_path.suffix
                     new_path = local_path.parent / new_name
                     logging.info("恢复原始文件名: %s -> %s", local_path.name, new_name)

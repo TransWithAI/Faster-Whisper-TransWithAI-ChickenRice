@@ -806,11 +806,10 @@ def summarize(manifest: UploadManifest, result: Dict) -> None:
             local_path = manifest.local_output_dir / rel_inside_output
             modal_volume_get(remote_file, local_path)
 
-            # 如果有原始文件名（包含空格），恢复原始文件名
+            # 如果有原始文件名，恢复原始文件名
             if manifest.original_filename:
                 original_stem = Path(manifest.original_filename).stem
-                safe_stem = original_stem.replace(" ", "_")
-                if local_path.stem == safe_stem:
+                if local_path.stem == "todo":  # 固定文件名
                     new_name = original_stem + local_path.suffix
                     new_path = local_path.parent / new_name
                     logging.info("恢复原始文件名: %s -> %s", local_path.name, new_name)

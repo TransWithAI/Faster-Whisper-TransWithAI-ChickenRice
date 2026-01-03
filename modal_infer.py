@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import subprocess
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 from uuid import uuid4
 
 try:
@@ -43,7 +43,6 @@ AUDIO_SUFFIXES = {
     ".aac",
     ".ogg",
     ".wma",
-    ".mp4",
     ".mkv",
     ".avi",
     ".mov",
@@ -51,6 +50,7 @@ AUDIO_SUFFIXES = {
     ".flv",
     ".wmv",
 }
+VIDEO_NEED_CONVERT = {".mp4"}  # 需要用户手动转换的格式
 DEFAULT_GPU_CHOICES = [
     "T4",
     "L4",
@@ -96,6 +96,12 @@ class UploadManifest:
     remote_output_rel: Path
     local_output_dir: Path
     remote_logs_rel: Path
+
+
+@dataclass
+class ScanResult:
+    audio_files: List[Path]
+    mp4_files: List[Path]
 
 
 @dataclass
@@ -258,62 +264,81 @@ def ask_selection() -> UserSelection:
     )
 
 
-def iter_audio_files(path: Path) -> List[Path]:
-    files: List[Path] = []
+def scan_audio_files(path: Path) -> ScanResult:
+    """扫描目录，返回音频文件和需要转换的 mp4 文件"""
+    audio_files: List[Path] = []
+    mp4_files: List[Path] = []
     for file in path.rglob("*"):
-        if file.is_file() and file.suffix.lower() in AUDIO_SUFFIXES:
-            files.append(file)
-    return files
+        if file.is_file():
+            suffix = file.suffix.lower()
+            if suffix in AUDIO_SUFFIXES:
+                audio_files.append(file)
+            elif suffix in VIDEO_NEED_CONVERT:
+                mp4_files.append(file)
+    return ScanResult(audio_files=audio_files, mp4_files=mp4_files)
 
 
-def validate_audio_path(path: Path) -> None:
+def validate_audio_path(path: Path) -> ScanResult:
+    """验证音频路径，返回扫描结果。如果发现 mp4 文件会打印警告。"""
     if path.is_file():
-        if path.suffix.lower() not in AUDIO_SUFFIXES:
+        suffix = path.suffix.lower()
+        if suffix in VIDEO_NEED_CONVERT:
+            raise ValueError(
+                f"文件 {path} 是 mp4 格式，请先使用 ffmpeg 转换为 mp3：\n"
+                f"  ffmpeg -i \"{path}\" -vn -acodec libmp3lame \"{path.with_suffix('.mp3')}\""
+            )
+        if suffix not in AUDIO_SUFFIXES:
             raise ValueError(f"文件 {path} 不属于支持的音/视频格式。")
+        return ScanResult(audio_files=[path], mp4_files=[])
     elif path.is_dir():
-        if not iter_audio_files(path):
+        scan_result = scan_audio_files(path)
+        if scan_result.mp4_files:
+            logging.warning("=" * 60)
+            logging.warning("发现 %d 个 mp4 文件，这些文件将被跳过：", len(scan_result.mp4_files))
+            for mp4_file in scan_result.mp4_files:
+                logging.warning("  - %s", mp4_file)
+            logging.warning("请使用 ffmpeg 转换为 mp3 后再处理，例如：")
+            logging.warning("  ffmpeg -i \"input.mp4\" -vn -acodec libmp3lame \"output.mp3\"")
+            logging.warning("=" * 60)
+        if not scan_result.audio_files:
             raise ValueError(f"文件夹 {path} 中没有支持的音/视频文件。")
+        return scan_result
     else:
         raise ValueError(f"路径 {path} 既不是文件也不是文件夹。")
 
 
-def prepare_upload(
+def upload_single_file(
     volume: modal.Volume,
     selection: UserSelection,
+    audio_file: Path,
+    base_dir: Optional[Path] = None,
 ) -> UploadManifest:
-    validate_audio_path(selection.input_path)
+    """上传单个音频文件到 Modal Volume。
+
+    Args:
+        volume: Modal Volume 实例
+        selection: 用户选择配置
+        audio_file: 要上传的音频文件路径
+        base_dir: 基础目录（用于文件夹模式，输出到此目录）
+    """
     session_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
     remote_session_rel = SESSION_SUBDIR / session_id
     remote_logs_rel = remote_session_rel / "logs"
-    remote_inputs_rel: List[Path] = []
 
     with volume.batch_upload(force=True) as batch:
-        if selection.input_path.is_file():
-            remote_rel = remote_session_rel / selection.input_path.name
-            logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
-            batch.put_file(str(selection.input_path), rel_to_volume_path(remote_rel))
-            remote_inputs_rel.append(remote_rel)
-            remote_output_rel = remote_session_rel
-            local_output_dir = selection.input_path.parent
-            source_type = "file"
-        else:
-            remote_input_dir_rel = remote_session_rel / selection.input_path.name
-            audio_files = iter_audio_files(selection.input_path)
-            for file in audio_files:
-                rel = remote_input_dir_rel / file.relative_to(selection.input_path)
-                logging.info("上传文件 -> %s", rel_to_volume_path(rel))
-                batch.put_file(str(file), rel_to_volume_path(rel))
-            remote_inputs_rel.append(remote_input_dir_rel)
-            remote_output_rel = remote_session_rel / f"{selection.input_path.name}_out"
-            local_output_dir = selection.input_path / f"{selection.input_path.name}_out"
-            source_type = "directory"
+        remote_rel = remote_session_rel / audio_file.name
+        logging.info("上传文件 -> %s", rel_to_volume_path(remote_rel))
+        batch.put_file(str(audio_file), rel_to_volume_path(remote_rel))
+
+    # 如果指定了 base_dir（文件夹模式），输出到 base_dir；否则输出到文件所在目录
+    local_output_dir = base_dir if base_dir else audio_file.parent
 
     return UploadManifest(
         session_id=session_id,
-        source_type=source_type,
-        local_source=selection.input_path,
-        remote_inputs_rel=remote_inputs_rel,
-        remote_output_rel=remote_output_rel,
+        source_type="file",
+        local_source=audio_file,
+        remote_inputs_rel=[remote_rel],
+        remote_output_rel=remote_session_rel,
         local_output_dir=local_output_dir,
         remote_logs_rel=remote_logs_rel,
     )
@@ -404,6 +429,78 @@ def run_remote_pipeline(
     return RemoteResult(created_files=created, log_file=result.get("log_file"))
 
 
+def process_directory_files(
+    volume: modal.Volume,
+    selection: UserSelection,
+    audio_files: List[Path],
+) -> Tuple[int, int]:
+    """处理文件夹中的所有音频文件，容器复用。
+
+    Args:
+        volume: Modal Volume 实例
+        selection: 用户选择配置
+        audio_files: 要处理的音频文件列表
+
+    Returns:
+        (成功数, 失败数) 元组
+    """
+    logging.info("=== 开始构建 Modal 镜像 ===")
+    image = build_modal_image()
+    logging.info("✓ 镜像构建完成")
+    logging.info("使用 GPU：%s", selection.gpu_choice)
+    logging.info("超时时间：%d 分钟", selection.timeout_minutes)
+    logging.info("待处理文件数：%d", len(audio_files))
+
+    app = modal.App(APP_NAME)
+
+    @app.function(
+        image=image,
+        gpu=selection.gpu_choice,
+        timeout=selection.timeout_minutes * 60,
+        volumes={str(REMOTE_MOUNT): volume},
+        serialized=True,
+        min_containers=1,  # 保持容器预热，复用容器
+    )
+    def modal_pipeline(job_payload: Dict) -> Dict:
+        return _remote_pipeline(job_payload)
+
+    success_count = 0
+    fail_count = 0
+    base_dir = selection.input_path  # 文件夹模式下，输出到源文件夹
+
+    with app.run():
+        for i, audio_file in enumerate(audio_files, 1):
+            logging.info("=" * 60)
+            logging.info("处理文件 [%d/%d]: %s", i, len(audio_files), audio_file.name)
+            logging.info("=" * 60)
+            try:
+                # 1. 上传单个文件
+                manifest = upload_single_file(volume, selection, audio_file, base_dir)
+
+                # 2. 构建 payload
+                payload = build_job_payload(selection, manifest)
+
+                # 3. 执行推理（复用容器）
+                logging.info("正在执行推理...")
+                result = modal_pipeline.remote(payload)
+
+                # 4. 下载结果到源文件夹
+                remote_result = RemoteResult(
+                    created_files=result.get("created", {}),
+                    log_file=result.get("log_file"),
+                )
+                download_outputs(manifest, remote_result)
+
+                logging.info("✓ 文件 %s 处理完成", audio_file.name)
+                success_count += 1
+            except Exception as e:
+                logging.error("✗ 文件 %s 处理失败: %s", audio_file.name, e)
+                fail_count += 1
+                continue  # 继续处理下一个文件
+
+    return success_count, fail_count
+
+
 def download_outputs(
     manifest: UploadManifest,
     result: RemoteResult,
@@ -460,12 +557,29 @@ def main() -> None:
     try:
         selection = ask_selection()
         volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
-        manifest = prepare_upload(volume, selection)
-        payload = build_job_payload(selection, manifest)
-        result = run_remote_pipeline(volume, selection, manifest, payload)
-        download_outputs(manifest, result)
-        summarize(manifest, result)
-        logging.info("✅ 请在上方输出路径查看字幕结果。")
+
+        # 验证路径并获取扫描结果
+        scan_result = validate_audio_path(selection.input_path)
+
+        if selection.input_path.is_dir():
+            # 文件夹模式：逐个处理文件，容器复用
+            logging.info("检测到文件夹输入，将逐个处理 %d 个音频文件", len(scan_result.audio_files))
+            success_count, fail_count = process_directory_files(
+                volume, selection, scan_result.audio_files
+            )
+            logging.info("=" * 60)
+            logging.info("=== 批量处理完成 ===")
+            logging.info("成功: %d, 失败: %d", success_count, fail_count)
+            logging.info("输出路径: %s", selection.input_path)
+            logging.info("✅ 请在上方输出路径查看字幕结果。")
+        else:
+            # 单文件模式：保持原有逻辑
+            manifest = upload_single_file(volume, selection, selection.input_path)
+            payload = build_job_payload(selection, manifest)
+            result = run_remote_pipeline(volume, selection, manifest, payload)
+            download_outputs(manifest, result)
+            summarize(manifest, result)
+            logging.info("✅ 请在上方输出路径查看字幕结果。")
     except KeyboardInterrupt:
         logging.warning("用户中断，未执行任何远程操作。")
         sys.exit(1)

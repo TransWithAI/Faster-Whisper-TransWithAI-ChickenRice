@@ -729,12 +729,8 @@ def process_directory_files(
                 logging.info("正在执行推理...")
                 result = modal_pipeline.remote(payload)
 
-                # 4. 下载结果到源文件夹
-                remote_result = RemoteResult(
-                    created_files=result.get("created", {}),
-                    log_file=result.get("log_file"),
-                )
-                download_outputs(manifest, remote_result)
+                # 4. 写入结果文件到本地
+                download_outputs(manifest, result)
 
                 logging.info("✓ 文件 %s 处理完成", audio_file.name)
                 success_count += 1
@@ -787,37 +783,36 @@ def summarize(manifest: UploadManifest, result: Dict) -> None:
 =======
     result: RemoteResult,
 ) -> None:
-    def modal_volume_get(remote_path: str, local_dest: Path) -> None:
-        local_dest.parent.mkdir(parents=True, exist_ok=True)
-        logging.info("下载 %s -> %s", remote_path, local_dest)
-        subprocess.run(
-            ["modal", "volume", "get", VOLUME_NAME, remote_path, str(local_dest), "--force"],
-            check=True,
-        )
+    """从远程结果中提取文件内容并写入本地"""
+    import base64
 
-    for remote_dir, files in result.created_files.items():
-        base_rel = Path(remote_dir.lstrip("/"))
-        for remote_file in files:
-            file_rel = Path(remote_file.lstrip("/"))
-            try:
-                rel_inside_output = file_rel.relative_to(base_rel)
-            except Exception:
-                rel_inside_output = Path(file_rel.name)
-            local_path = manifest.local_output_dir / rel_inside_output
-            modal_volume_get(remote_file, local_path)
+    created_files = result.get("created_files", {})
+    log_content = result.get("log_content")
 
-            # 如果有原始文件名，恢复原始文件名
-            if manifest.original_filename:
-                original_stem = Path(manifest.original_filename).stem
-                if local_path.stem == "todo":  # 固定文件名
-                    new_name = original_stem + local_path.suffix
-                    new_path = local_path.parent / new_name
-                    logging.info("恢复原始文件名: %s -> %s", local_path.name, new_name)
-                    local_path.rename(new_path)
+    # 获取原始文件名的 stem（不含扩展名）
+    original_stem = Path(manifest.original_filename).stem if manifest.original_filename else "todo"
 
-    if result.log_file:
-        local_log = Path("logs") / Path(Path(result.log_file).name)
-        modal_volume_get(result.log_file, local_log)
+    for filename, content_b64 in created_files.items():
+        content = base64.b64decode(content_b64)
+        # 将 todo.xxx 替换为原始文件名
+        if filename.startswith("todo."):
+            suffix = Path(filename).suffix
+            new_filename = original_stem + suffix
+        else:
+            new_filename = filename
+
+        local_path = manifest.local_output_dir / new_filename
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_bytes(content)
+        logging.info("写入文件: %s (%d bytes)", local_path, len(content))
+
+    # 写入 log 文件
+    if log_content:
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+        log_path = log_dir / f"modal_run_{manifest.session_id}.log"
+        log_path.write_bytes(base64.b64decode(log_content))
+        logging.info("写入日志: %s", log_path)
 
 
 def summarize(manifest: UploadManifest, result: RemoteResult) -> None:

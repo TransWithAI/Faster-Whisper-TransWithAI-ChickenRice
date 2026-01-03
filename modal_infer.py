@@ -105,12 +105,6 @@ class ScanResult:
     mp4_files: List[Path]
 
 
-@dataclass
-class RemoteResult:
-    created_files: Dict[str, List[str]]
-    log_file: Optional[str]
-
-
 def rel_to_volume_path(path: Path) -> str:
     posix = path.as_posix()
     if not posix.startswith("/"):
@@ -403,7 +397,7 @@ def run_remote_pipeline(
     selection: UserSelection,
     manifest: UploadManifest,
     payload: Dict,
-) -> RemoteResult:
+) -> Dict:
     logging.info("=== 开始构建 Modal 镜像 ===")
     image = build_modal_image()
     logging.info("✓ 镜像构建完成")
@@ -429,10 +423,7 @@ def run_remote_pipeline(
         result = modal_pipeline.remote(payload)
     logging.info("-" * 60)
     logging.info("✓ 远程执行完成")
-    created = {
-        remote_dir: files for remote_dir, files in result.get("created", {}).items()
-    }
-    return RemoteResult(created_files=created, log_file=result.get("log_file"))
+    return result  # 直接返回 Dict，包含 created_files 和 log_content
 
 
 def process_directory_files(
@@ -490,12 +481,8 @@ def process_directory_files(
                 logging.info("正在执行推理...")
                 result = modal_pipeline.remote(payload)
 
-                # 4. 下载结果到源文件夹
-                remote_result = RemoteResult(
-                    created_files=result.get("created", {}),
-                    log_file=result.get("log_file"),
-                )
-                download_outputs(manifest, remote_result)
+                # 4. 写入结果文件到本地
+                download_outputs(manifest, result)
 
                 logging.info("✓ 文件 %s 处理完成", audio_file.name)
                 success_count += 1
@@ -509,51 +496,50 @@ def process_directory_files(
 
 def download_outputs(
     manifest: UploadManifest,
-    result: RemoteResult,
+    result: Dict,
 ) -> None:
-    def modal_volume_get(remote_path: str, local_dest: Path) -> None:
-        local_dest.parent.mkdir(parents=True, exist_ok=True)
-        logging.info("下载 %s -> %s", remote_path, local_dest)
-        subprocess.run(
-            ["modal", "volume", "get", VOLUME_NAME, remote_path, str(local_dest), "--force"],
-            check=True,
-        )
+    """从远程结果中提取文件内容并写入本地"""
+    import base64
 
-    for remote_dir, files in result.created_files.items():
-        base_rel = Path(remote_dir.lstrip("/"))
-        for remote_file in files:
-            file_rel = Path(remote_file.lstrip("/"))
-            try:
-                rel_inside_output = file_rel.relative_to(base_rel)
-            except Exception:
-                rel_inside_output = Path(file_rel.name)
-            local_path = manifest.local_output_dir / rel_inside_output
-            modal_volume_get(remote_file, local_path)
+    created_files = result.get("created_files", {})
+    log_content = result.get("log_content")
 
-            # 如果有原始文件名，恢复原始文件名
-            if manifest.original_filename:
-                original_stem = Path(manifest.original_filename).stem
-                if local_path.stem == "todo":  # 固定文件名
-                    new_name = original_stem + local_path.suffix
-                    new_path = local_path.parent / new_name
-                    logging.info("恢复原始文件名: %s -> %s", local_path.name, new_name)
-                    local_path.rename(new_path)
+    # 获取原始文件名的 stem（不含扩展名）
+    original_stem = Path(manifest.original_filename).stem if manifest.original_filename else "todo"
 
-    if result.log_file:
-        local_log = Path("logs") / Path(Path(result.log_file).name)
-        modal_volume_get(result.log_file, local_log)
+    for filename, content_b64 in created_files.items():
+        content = base64.b64decode(content_b64)
+        # 将 todo.xxx 替换为原始文件名
+        if filename.startswith("todo."):
+            suffix = Path(filename).suffix
+            new_filename = original_stem + suffix
+        else:
+            new_filename = filename
+
+        local_path = manifest.local_output_dir / new_filename
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        local_path.write_bytes(content)
+        logging.info("写入文件: %s (%d bytes)", local_path, len(content))
+
+    # 写入 log 文件
+    if log_content:
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+        log_path = log_dir / f"modal_run_{manifest.session_id}.log"
+        log_path.write_bytes(base64.b64decode(log_content))
+        logging.info("写入日志: %s", log_path)
 
 
-def summarize(manifest: UploadManifest, result: RemoteResult) -> None:
+def summarize(manifest: UploadManifest, result: Dict) -> None:
     logging.info("=== 运行完成 ===")
     logging.info("Session: %s", manifest.session_id)
     logging.info("源路径: %s", manifest.local_source)
     logging.info("输出路径: %s", manifest.local_output_dir if manifest.source_type == "directory" else manifest.local_source.parent)
-    if result.created_files:
+    created_files = result.get("created_files", {})
+    if created_files:
         logging.info("新生成文件：")
-        for remote_dir, files in result.created_files.items():
-            for file in files:
-                logging.info("  %s", file)
+        for filename in created_files.keys():
+            logging.info("  %s", filename)
 
 
 def parse_args() -> argparse.Namespace:
@@ -763,7 +749,9 @@ def _remote_pipeline(job: Dict) -> Dict:
     def to_volume_path(path_str: str) -> str:
         return container_to_volume_path(path_str)
 
-    created = {}
+    # 收集生成的文件内容（直接返回，避免 volume 同步问题）
+    import base64
+    created_files = {}  # {filename: base64_content}
     for target in job["output_targets"]:
         remote_dir = target["remote_dir"]
         after = snapshot(remote_dir)
@@ -773,9 +761,24 @@ def _remote_pipeline(job: Dict) -> Dict:
             for file in after - prev
             if Path(file).suffix.lower() in SUB_SUFFIXES
         )
-        created[to_volume_path(remote_dir)] = [to_volume_path(path) for path in new_files]
+        for file_path in new_files:
+            file_path = Path(file_path)
+            if file_path.exists():
+                content = file_path.read_bytes()
+                # 文件名使用相对于 remote_dir 的路径
+                rel_name = file_path.name
+                created_files[rel_name] = base64.b64encode(content).decode()
+                log(f"读取生成文件: {file_path} ({len(content)} bytes)")
 
-    return {"created": created, "log_file": to_volume_path(str(log_file))}
+    # 读取 log 文件内容
+    log_content = None
+    if log_file.exists():
+        log_content = base64.b64encode(log_file.read_bytes()).decode()
+
+    return {
+        "created_files": created_files,  # {filename: base64_content}
+        "log_content": log_content,
+    }
 
 
 if __name__ == "__main__":  # pragma: no cover

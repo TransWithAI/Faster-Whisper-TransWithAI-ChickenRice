@@ -164,6 +164,25 @@ A: 使用"低显存模式"批处理文件，或切换到CPU模式。
 
 ## 📝 更新日志
 
+### v1.6 (2026-01-12)
+- ☁️ **Modal 云端推理支持**：新增 `modal_infer.exe`，无需本地 GPU 也能使用云端 GPU 进行推理（感谢 [@Randomless](https://github.com/Randomless) 贡献）
+- 🎮 **多 GPU 选择**：支持 T4、L4、A10G、A100、H100 等多种云端 GPU
+- 💰 **新用户福利**：Modal 新用户每月 $30 免费额度，T4 GPU 推荐性价比最高
+- 🔧 **交互式配置**：通过命令行交互选择 GPU 类型、模型、批处理等参数
+- 📤 **自动文件传输**：自动上传本地音频、下载生成的字幕到本地
+- 🗃️ **模型缓存**：模型文件在 Modal Volume 中缓存，后续运行更快
+- 📦 **环境整合**：Modal 依赖已集成到主环境文件，无需单独安装
+
+**☁️ 使用方法**：
+1. 注册 Modal 账号：https://modal.com/
+2. 配置 Token：运行 `modal token new`
+3. 运行推理：`modal_infer.exe` 或 `python modal_infer.py`
+
+**💡 使用建议**：
+- 本地无 GPU 或显存不足时使用云端推理
+- T4 GPU 性价比最高，适合一般转录任务
+- 大量任务可选择 A10G/A100 加速处理
+
 ### v1.5 (2025-12-26)
 - 🔧 **字幕合并后处理**：新增 `segment_merge` 配置选项，智能合并重复/重叠的字幕片段
 - ⚙️ **灵活配置**：在 `generation_config.json5` 中配置合并参数（启用/禁用、最大间隔、最大时长）
@@ -254,6 +273,7 @@ A: 使用"低显存模式"批处理文件，或切换到CPU模式。
 - 🐔 使用 [chickenrice0721/whisper-large-v2-translate-zh-v0.2-st](https://huggingface.co/chickenrice0721/whisper-large-v2-translate-zh-v0.2-st) 日文转中文优化模型
 - 🔊 使用 [TransWithAI/Whisper-Vad-EncDec-ASMR-onnx](https://huggingface.co/TransWithAI/Whisper-Vad-EncDec-ASMR-onnx) 音声优化 VAD 模型
 - 🎙️ [OpenAI Whisper](https://github.com/openai/whisper) 原始项目
+- ☁️ 感谢 [@Randomless](https://github.com/Randomless) 贡献 Modal 云端推理功能
 - 💪 **感谢某匿名群友的算力和技术支持**
 
 ---

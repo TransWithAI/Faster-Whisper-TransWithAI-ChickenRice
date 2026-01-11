@@ -212,6 +212,11 @@ jobs:
         python -c "import ctranslate2; print(f'CTranslate2 version: {ctranslate2.__version__}')"
         echo "Note: CUDA availability check skipped (no GPU on GitHub runners)"
 
+    - name: Install Modal dependencies
+      run: |
+        pip install modal questionary
+        python -c "import modal; print(f'Modal version: {modal.__version__}')"
+
     - name: Check cached models
       run: |
         echo "Checking for cached models..."

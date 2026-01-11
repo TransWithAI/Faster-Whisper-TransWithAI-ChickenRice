@@ -905,6 +905,7 @@ def main() -> int:
 def main() -> None:
     parse_args()
     log_path = setup_logger()
+    exit_code = 0
     try:
         selection = ask_selection()
         volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
@@ -933,11 +934,14 @@ def main() -> None:
             logging.info("✅ 请在上方输出路径查看字幕结果。")
     except KeyboardInterrupt:
         logging.warning("用户中断，未执行任何远程操作。")
-        sys.exit(1)
+        exit_code = 1
     except Exception as exc:
-        logging.exception("运行失败：%s", exc)
+        if isinstance(exc, NoAudioFilesError):
+            logging.error("%s", exc)
+        else:
+            logging.exception("运行失败：%s", exc)
         logging.error("日志见：%s", log_path)
-        sys.exit(1)
+        exit_code = 1
 
 
 >>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)

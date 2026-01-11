@@ -346,7 +346,7 @@ datas += [
 ]
 
 a = Analysis(
-    ['infer.py'],
+    ['infer.py', 'modal_infer.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,
@@ -374,9 +374,9 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-exe = EXE(
+infer_exe = EXE(
     pyz,
-    a.scripts,
+    [a.scripts[0]],
     [],
     exclude_binaries=True,
     name='infer',
@@ -393,8 +393,28 @@ exe = EXE(
     icon='transwithai.ico' if os.path.exists('transwithai.ico') else None,
 )
 
+modal_exe = EXE(
+    pyz,
+    [a.scripts[1]],
+    [],
+    exclude_binaries=True,
+    name='modal_infer',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon='transwithai.ico' if os.path.exists('transwithai.ico') else None,
+)
+
 coll = COLLECT(
-    exe,
+    infer_exe,
+    modal_exe,
     a.binaries,
     a.zipfiles,
     a.datas,

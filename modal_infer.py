@@ -105,6 +105,10 @@ class ScanResult:
     mp4_files: List[Path]
 
 
+class NoAudioFilesError(Exception):
+    pass
+
+
 def rel_to_volume_path(path: Path) -> str:
     posix = path.as_posix()
     if not posix.startswith("/"):
@@ -296,7 +300,7 @@ def validate_audio_path(path: Path) -> ScanResult:
             logging.warning("  ffmpeg -i \"input.mp4\" -vn -acodec libmp3lame \"output.mp3\"")
             logging.warning("=" * 60)
         if not scan_result.audio_files:
-            raise ValueError(f"文件夹 {path} 中没有支持的音/视频文件。")
+            raise NoAudioFilesError(f"输入的文件夹内没有音频文件：{path}")
         return scan_result
     else:
         raise ValueError(f"路径 {path} 既不是文件也不是文件夹。")
@@ -552,9 +556,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    parse_args()
+def prompt_exit(enabled: bool) -> None:
+    if not enabled:
+        return
+    try:
+        input("输入任意键退出...")
+    except EOFError:
+        pass
+
+
+def main() -> int:
+    args = parse_args()
     log_path = setup_logger()
+    exit_code = 0
     try:
         selection = ask_selection()
         volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
@@ -583,12 +597,18 @@ def main() -> None:
             logging.info("✅ 请在上方输出路径查看字幕结果。")
     except KeyboardInterrupt:
         logging.warning("用户中断，未执行任何远程操作。")
-        sys.exit(1)
+        exit_code = 1
     except Exception as exc:
-        logging.exception("运行失败：%s", exc)
+        if isinstance(exc, NoAudioFilesError):
+            logging.error("%s", exc)
+        else:
+            logging.exception("运行失败：%s", exc)
         logging.error("日志见：%s", log_path)
-        sys.exit(1)
+        exit_code = 1
 
+
+    prompt_exit(not args.non_interactive)
+    return exit_code
 
 def _remote_pipeline(job: Dict) -> Dict:
     import subprocess
@@ -782,4 +802,4 @@ def _remote_pipeline(job: Dict) -> Dict:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    sys.exit(main())

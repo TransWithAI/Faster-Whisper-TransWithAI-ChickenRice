@@ -37,7 +37,8 @@ dependencies:
       - backports.functools-lru-cache  # Fix for PyInstaller ModuleNotFoundError
 
       # Build tools
-      - pyinstaller>=6.0.0
+      # PyInstaller 6.17.0 has a conda hook regression (KeyError: 'depends') in some conda environments
+      - pyinstaller==6.16.0
       - setuptools>=65.0.0
       - wheel>=0.38.0
       - build>=0.10.0

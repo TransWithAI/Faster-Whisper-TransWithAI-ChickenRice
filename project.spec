@@ -497,17 +497,24 @@ modal_exe = EXE(
     icon='transwithai.ico' if os.path.exists('transwithai.ico') else None,
 )
 
-coll = COLLECT(
+coll_infer = COLLECT(
     infer_exe,
-    modal_exe,
     a_infer.binaries,
     a_infer.zipfiles,
     a_infer.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='engine',
+)
+
+coll_modal = COLLECT(
+    modal_exe,
     a_modal.binaries,
     a_modal.zipfiles,
     a_modal.datas,
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='faster_whisper_transwithai_chickenrice',
+    name='client',
 )

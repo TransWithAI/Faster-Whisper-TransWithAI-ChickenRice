@@ -285,6 +285,19 @@ jobs:
 
         python build_windows.py
 
+    - name: Prepare distribution layout
+      run: |
+        echo "Preparing distribution layout..."
+        mkdir -p dist/faster_whisper_transwithai_chickenrice
+        if [ -d "dist/engine" ]; then
+          mv dist/engine dist/faster_whisper_transwithai_chickenrice/engine
+        fi
+        if [ -d "dist/client" ]; then
+          mv dist/client dist/faster_whisper_transwithai_chickenrice/client
+        fi
+        echo "Distribution root:"
+        find dist/faster_whisper_transwithai_chickenrice -maxdepth 2 -type d -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null || true
+
     - name: Copy models to distribution
       run: |
         echo "Copying models to distribution directory..."
@@ -294,19 +307,19 @@ jobs:
           find models -maxdepth 1 -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null
           echo ""
 
-          # Create models directory in dist
-          mkdir -p dist/faster_whisper_transwithai_chickenrice/models
+          # Create models directory in engine dist
+          mkdir -p dist/faster_whisper_transwithai_chickenrice/engine/models
 
           # Copy VAD model files (always included)
           echo "Copying VAD models..."
-          cp models/*.onnx dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
-          cp models/*.json dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
+          cp models/*.onnx dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
+          cp models/*.json dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
 
           # Copy whisper-base for feature extractor (always included for offline usage)
           echo "Copying whisper-base for feature extractor..."
           if [ -d "models/whisper-base" ]; then
             echo "  Found whisper-base directory, copying..."
-            cp -r models/whisper-base dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
+            cp -r models/whisper-base dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
             echo "  Whisper-base copied for offline feature extractor support"
           else
             echo "  WARNING: whisper-base directory not found"
@@ -322,9 +335,9 @@ jobs:
                 if [ "$model_name" != "whisper-base" ]; then
                   echo "  Copying model contents from: $model_name"
                   # Copy the contents of the model directory, not the directory itself
-                  cp -r "$dir"* dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
+                  cp -r "$dir"* dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
                   # Also copy hidden files if any exist
-                  cp -r "$dir".* dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
+                  cp -r "$dir".* dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
                 fi
               fi
             done
@@ -332,7 +345,7 @@ jobs:
 
           echo ""
           echo "Models in distribution:"
-          find dist/faster_whisper_transwithai_chickenrice/models -maxdepth 1 -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null
+          find dist/faster_whisper_transwithai_chickenrice/engine/models -maxdepth 1 -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null
           echo ""
           echo "Total distribution size:"
           du -sh dist/faster_whisper_transwithai_chickenrice/
@@ -380,8 +393,9 @@ jobs:
     - name: Test executable (CPU mode)
       shell: cmd /C CALL {0}
       run: |
-        cd dist\faster_whisper_transwithai_chickenrice
+        cd dist\faster_whisper_transwithai_chickenrice\engine
         infer.exe --help
+        cd ..\client
         modal_infer.exe --help
 
     - name: Upload artifact

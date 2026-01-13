@@ -57,6 +57,7 @@ except ImportError as exc:  # pragma: no cover
 APP_NAME = "Faster-Whisper-TransWithAI-ChickenRice"
 REPO_URL = "https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice"
 <<<<<<< HEAD
+REPO_REF = "v1.4"
 VOLUME_NAME = "Faster_Whisper"
 VOLUME_ROOT = "/Faster_Whisper"
 REMOTE_MOUNT = VOLUME_ROOT
@@ -1010,11 +1011,12 @@ def _remote_pipeline(job: Dict) -> Dict:
 
     if not (repo_dir / ".git").exists():
         log("开始克隆仓库...")
-        run(["git", "clone", REPO_URL, str(repo_dir)])
+        run(["git", "clone", "--branch", REPO_REF, "--depth", "1", REPO_URL, str(repo_dir)])
     else:
         log("更新仓库...")
-        run(["git", "-C", str(repo_dir), "fetch", "origin", "main"])
-        run(["git", "-C", str(repo_dir), "reset", "--hard", "origin/main"])
+        run(["git", "-C", str(repo_dir), "fetch", "--tags", "origin"])
+        run(["git", "-C", str(repo_dir), "checkout", "-f", REPO_REF])
+        run(["git", "-C", str(repo_dir), "reset", "--hard", REPO_REF])
 
     model_profile = job["model_profile"]
     model_path = repo_dir / "models"

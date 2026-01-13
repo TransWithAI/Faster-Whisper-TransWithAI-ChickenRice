@@ -212,6 +212,21 @@ def build():
         # Build modal_infer if modal.spec is present (separate target).
         modal_spec = Path("modal.spec")
         if modal_spec.exists():
+            # Ensure modal dependencies are available in the current env.
+            try:
+                import modal  # noqa: F401
+                import questionary  # noqa: F401
+            except ImportError:
+                print("\nmodal/questionary not found; installing for modal.spec build...")
+                install_cmd = [
+                    sys.executable, "-m", "pip", "install",
+                    "modal", "questionary",
+                ]
+                install_result = subprocess.run(install_cmd, capture_output=False)
+                if install_result.returncode != 0:
+                    print("\nFailed to install modal/questionary.")
+                    return 1
+
             modal_cmd = [
                 sys.executable, "-m", "PyInstaller",
                 "--clean",

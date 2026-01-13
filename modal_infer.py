@@ -1061,16 +1061,12 @@ def _remote_pipeline(job: Dict) -> Dict:
     cmd = [
         "python",
         str(repo_dir / "infer.py"),
-        "--device",
-        "cuda",
-        "--model_name_or_path",
-        str(model_path),
-        "--sub_formats",
-        job["sub_formats"],
-        "--log_level",
-        "INFO",
-        "--output_dir",
-        str(output_dir),
+        "--audio_suffixes", "mp3,wav,flac,m4a,aac,ogg,wma,mp4,mkv,avi,mov,webm,flv,wmv",
+        "--device","cuda",
+        "--model_name_or_path",str(model_path),
+        "--sub_formats",job["sub_formats"],
+        "--log_level","INFO",
+        "--output_dir",str(output_dir),
     ]
     if job["enable_batching"]:
         cmd.append("--enable_batching")

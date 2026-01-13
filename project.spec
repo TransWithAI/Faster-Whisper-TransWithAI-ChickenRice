@@ -345,69 +345,12 @@ datas += [
     ('locales', 'locales'),  # Include the locales directory with translations
 ]
 
-# Base collections (for infer.exe only)
-infer_datas = list(datas)
-infer_binaries = list(binaries)
-infer_hiddenimports = list(hiddenimports)
-
-# Extend collections for modal_infer.exe only
-modal_datas = list(datas)
-modal_binaries = list(binaries)
-modal_hiddenimports = list(hiddenimports)
-
-# Collect modal / questionary and their tricky deps explicitly (modal_infer only)
-try:
-    m_datas, m_binaries, m_hiddenimports = collect_all('modal')
-    modal_datas += m_datas
-    modal_binaries += m_binaries
-    modal_hiddenimports += m_hiddenimports
-    print("Collected modal successfully")
-except:
-    print("Warning: could not collect modal")
-
-try:
-    s_datas, s_binaries, s_hiddenimports = collect_all('synchronicity')
-    modal_datas += s_datas
-    modal_binaries += s_binaries
-    modal_hiddenimports += s_hiddenimports
-except:
-    print("Warning: could not collect synchronicity")
-
-try:
-    q_datas, q_binaries, q_hiddenimports = collect_all('questionary')
-    modal_datas += q_datas
-    modal_binaries += q_binaries
-    modal_hiddenimports += q_hiddenimports
-except:
-    print("Warning: could not collect questionary")
-
-modal_hiddenimports += [
-    'modal',
-    'modal.proto',
-    'synchronicity',
-    'grpclib',
-    'google.protobuf',
-    'google.protobuf.internal',
-    'toml',
-    'rich',
-    'typer',
-    'click',
-    'questionary',
-    'prompt_toolkit',
-    'prompt_toolkit.styles',
-    'prompt_toolkit.key_binding',
-    'prompt_toolkit.formatted_text',
-    'prompt_toolkit.shortcuts',
-    'prompt_toolkit.output',
-    'prompt_toolkit.input',
-]
-
-a_infer = Analysis(
+a = Analysis(
     ['infer.py'],
     pathex=[],
-    binaries=infer_binaries,
-    datas=infer_datas,
-    hiddenimports=infer_hiddenimports,
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],  # PyInstaller hooks contrib should be auto-detected
     hooksconfig={},
     runtime_hooks=['runtime_hook.py'],  # Add runtime hook to set KMP_DUPLICATE_LIB_OK
@@ -429,39 +372,11 @@ a_infer = Analysis(
     noarchive=False,
 )
 
-a_modal = Analysis(
-    ['modal_infer.py'],
-    pathex=[],
-    binaries=modal_binaries,
-    datas=modal_datas,
-    hiddenimports=modal_hiddenimports,
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=['runtime_hook.py'],
-    excludes=[
-        'matplotlib',
-        'tkinter',
-        'PyQt5',
-        'PyQt6',
-        'PySide2',
-        'PySide6',
-        'notebook',
-        'jupyter',
-        'IPython',
-        'pytest',
-    ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
-)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-pyz_infer = PYZ(a_infer.pure, a_infer.zipped_data, cipher=block_cipher)
-pyz_modal = PYZ(a_modal.pure, a_modal.zipped_data, cipher=block_cipher)
-
-infer_exe = EXE(
-    pyz_infer,
-    [a_infer.scripts[0]],
+exe = EXE(
+    pyz,
+    a.scripts,
     [],
     exclude_binaries=True,
     name='infer',
@@ -478,43 +393,13 @@ infer_exe = EXE(
     icon='transwithai.ico' if os.path.exists('transwithai.ico') else None,
 )
 
-modal_exe = EXE(
-    pyz_modal,
-    [a_modal.scripts[0]],
-    [],
-    exclude_binaries=True,
-    name='modal_infer',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon='transwithai.ico' if os.path.exists('transwithai.ico') else None,
-)
-
-coll_infer = COLLECT(
-    infer_exe,
-    a_infer.binaries,
-    a_infer.zipfiles,
-    a_infer.datas,
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='engine',
-)
-
-coll_modal = COLLECT(
-    modal_exe,
-    a_modal.binaries,
-    a_modal.zipfiles,
-    a_modal.datas,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    name='client',
+    name='faster_whisper_transwithai_chickenrice',
 )

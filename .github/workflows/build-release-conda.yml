@@ -28,45 +28,12 @@ jobs:
     strategy:
       matrix:
         include:
-          # CUDA 11.8 versions
-          - cuda: "11.8"
-            env_file: "environment-cuda118.yml"
-            env_name: "faster-whisper-cu118"
-            artifact_suffix: "cu118"
-            model_variant: "base"
-            hf_model: ""
-          - cuda: "11.8"
-            env_file: "environment-cuda118.yml"
-            env_name: "faster-whisper-cu118"
-            artifact_suffix: "cu118-chickenrice"
-            model_variant: "chickenrice"
-            hf_model: "--hf-model chickenrice0721/whisper-large-v2-translate-zh-v0.2-st-ct2"
-          # CUDA 12.2 versions
-          - cuda: "12.2"
-            env_file: "environment-cuda122.yml"
-            env_name: "faster-whisper-cu122"
-            artifact_suffix: "cu122"
-            model_variant: "base"
-            hf_model: ""
-          - cuda: "12.2"
-            env_file: "environment-cuda122.yml"
-            env_name: "faster-whisper-cu122"
-            artifact_suffix: "cu122-chickenrice"
-            model_variant: "chickenrice"
-            hf_model: "--hf-model chickenrice0721/whisper-large-v2-translate-zh-v0.2-st-ct2"
-          # CUDA 12.8 versions
           - cuda: "12.8"
             env_file: "environment-cuda128.yml"
             env_name: "faster-whisper-cu128"
             artifact_suffix: "cu128"
             model_variant: "base"
             hf_model: ""
-          - cuda: "12.8"
-            env_file: "environment-cuda128.yml"
-            env_name: "faster-whisper-cu128"
-            artifact_suffix: "cu128-chickenrice"
-            model_variant: "chickenrice"
-            hf_model: "--hf-model chickenrice0721/whisper-large-v2-translate-zh-v0.2-st-ct2"
 
     steps:
     - name: Checkout code
@@ -212,11 +179,6 @@ jobs:
         python -c "import ctranslate2; print(f'CTranslate2 version: {ctranslate2.__version__}')"
         echo "Note: CUDA availability check skipped (no GPU on GitHub runners)"
 
-    - name: Install Modal dependencies
-      run: |
-        pip install modal questionary
-        python -c "import modal; print(f'Modal version: {modal.__version__}')"
-
     - name: Check cached models
       run: |
         echo "Checking for cached models..."
@@ -285,19 +247,6 @@ jobs:
 
         python build_windows.py
 
-    - name: Prepare distribution layout
-      run: |
-        echo "Preparing distribution layout..."
-        mkdir -p dist/faster_whisper_transwithai_chickenrice
-        if [ -d "dist/engine" ]; then
-          mv dist/engine dist/faster_whisper_transwithai_chickenrice/engine
-        fi
-        if [ -d "dist/client" ]; then
-          mv dist/client dist/faster_whisper_transwithai_chickenrice/client
-        fi
-        echo "Distribution root:"
-        find dist/faster_whisper_transwithai_chickenrice -maxdepth 2 -type d -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null || true
-
     - name: Copy models to distribution
       run: |
         echo "Copying models to distribution directory..."
@@ -307,19 +256,19 @@ jobs:
           find models -maxdepth 1 -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null
           echo ""
 
-          # Create models directory in engine dist
-          mkdir -p dist/faster_whisper_transwithai_chickenrice/engine/models
+          # Create models directory in dist
+          mkdir -p dist/faster_whisper_transwithai_chickenrice/models
 
           # Copy VAD model files (always included)
           echo "Copying VAD models..."
-          cp models/*.onnx dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
-          cp models/*.json dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
+          cp models/*.onnx dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
+          cp models/*.json dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
 
           # Copy whisper-base for feature extractor (always included for offline usage)
           echo "Copying whisper-base for feature extractor..."
           if [ -d "models/whisper-base" ]; then
             echo "  Found whisper-base directory, copying..."
-            cp -r models/whisper-base dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
+            cp -r models/whisper-base dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
             echo "  Whisper-base copied for offline feature extractor support"
           else
             echo "  WARNING: whisper-base directory not found"
@@ -335,9 +284,9 @@ jobs:
                 if [ "$model_name" != "whisper-base" ]; then
                   echo "  Copying model contents from: $model_name"
                   # Copy the contents of the model directory, not the directory itself
-                  cp -r "$dir"* dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
+                  cp -r "$dir"* dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
                   # Also copy hidden files if any exist
-                  cp -r "$dir".* dist/faster_whisper_transwithai_chickenrice/engine/models/ 2>/dev/null || true
+                  cp -r "$dir".* dist/faster_whisper_transwithai_chickenrice/models/ 2>/dev/null || true
                 fi
               fi
             done
@@ -345,7 +294,7 @@ jobs:
 
           echo ""
           echo "Models in distribution:"
-          find dist/faster_whisper_transwithai_chickenrice/engine/models -maxdepth 1 -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null
+          find dist/faster_whisper_transwithai_chickenrice/models -maxdepth 1 -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null
           echo ""
           echo "Total distribution size:"
           du -sh dist/faster_whisper_transwithai_chickenrice/
@@ -393,10 +342,8 @@ jobs:
     - name: Test executable (CPU mode)
       shell: cmd /C CALL {0}
       run: |
-        cd dist\faster_whisper_transwithai_chickenrice\engine
+        cd dist\faster_whisper_transwithai_chickenrice
         infer.exe --help
-        cd ..\client
-        modal_infer.exe --help
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4

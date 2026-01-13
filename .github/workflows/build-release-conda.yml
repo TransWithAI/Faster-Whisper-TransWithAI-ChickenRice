@@ -28,12 +28,45 @@ jobs:
     strategy:
       matrix:
         include:
+          # CUDA 11.8 versions
+          - cuda: "11.8"
+            env_file: "environment-cuda118.yml"
+            env_name: "faster-whisper-cu118"
+            artifact_suffix: "cu118"
+            model_variant: "base"
+            hf_model: ""
+          - cuda: "11.8"
+            env_file: "environment-cuda118.yml"
+            env_name: "faster-whisper-cu118"
+            artifact_suffix: "cu118-chickenrice"
+            model_variant: "chickenrice"
+            hf_model: "--hf-model chickenrice0721/whisper-large-v2-translate-zh-v0.2-st-ct2"
+          # CUDA 12.2 versions
+          - cuda: "12.2"
+            env_file: "environment-cuda122.yml"
+            env_name: "faster-whisper-cu122"
+            artifact_suffix: "cu122"
+            model_variant: "base"
+            hf_model: ""
+          - cuda: "12.2"
+            env_file: "environment-cuda122.yml"
+            env_name: "faster-whisper-cu122"
+            artifact_suffix: "cu122-chickenrice"
+            model_variant: "chickenrice"
+            hf_model: "--hf-model chickenrice0721/whisper-large-v2-translate-zh-v0.2-st-ct2"
+          # CUDA 12.8 versions
           - cuda: "12.8"
             env_file: "environment-cuda128.yml"
             env_name: "faster-whisper-cu128"
             artifact_suffix: "cu128"
             model_variant: "base"
             hf_model: ""
+          - cuda: "12.8"
+            env_file: "environment-cuda128.yml"
+            env_name: "faster-whisper-cu128"
+            artifact_suffix: "cu128-chickenrice"
+            model_variant: "chickenrice"
+            hf_model: "--hf-model chickenrice0721/whisper-large-v2-translate-zh-v0.2-st-ct2"
 
     steps:
     - name: Checkout code
@@ -344,6 +377,7 @@ jobs:
       run: |
         cd dist\faster_whisper_transwithai_chickenrice
         infer.exe --help
+        modal_infer.exe --help
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4

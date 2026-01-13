@@ -7,7 +7,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import subprocess
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -37,7 +37,7 @@ APP_NAME = "Faster-Whisper-TransWithAI-ChickenRice"
 REPO_URL = "https://github.com/TransWithAI/Faster-Whisper-TransWithAI-ChickenRice"
 <<<<<<< HEAD
 VOLUME_NAME = "Faster_Whisper"
-VOLUME_ROOT = Path("/Faster_Whisper")
+VOLUME_ROOT = "/Faster_Whisper"
 REMOTE_MOUNT = VOLUME_ROOT
 APP_ROOT_REL = Path(APP_NAME)
 SESSION_SUBDIR = Path("sessions")
@@ -97,6 +97,10 @@ DEFAULT_GPU_CHOICES = [
     "T4",
 >>>>>>> fe20a3c (feat: Add Modal cloud GPU inference support)
 ]
+
+def resolve_resource_path(filename: str) -> Path:
+    base_dir = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return base_dir / filename
 
 
 @dataclass
@@ -167,7 +171,8 @@ def rel_to_volume_path(path: Path) -> str:
 
 
 def rel_to_container_path(path: Path) -> str:
-    return str((REMOTE_MOUNT / path).as_posix())
+    base = PurePosixPath(REMOTE_MOUNT)
+    return str((base / path.as_posix()).as_posix())
 
 
 def volume_path_to_relative(path: str) -> Path:
@@ -439,7 +444,7 @@ def upload_single_file(
         base_dir: 基础目录（用于文件夹模式，输出到此目录）
     """
     session_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
-    remote_session_rel = SESSION_SUBDIR / session_id
+    remote_session_rel = Path(SESSION_SUBDIR) / session_id
     remote_logs_rel = remote_session_rel / "logs"
 
     # 使用固定文件名避免全角字符等问题
@@ -546,7 +551,7 @@ def build_modal_image() -> modal.Image:
         modal.Image.micromamba(python_version="3.10")
         .apt_install("git")
         .micromamba_install(
-            spec_file="environment-cuda128.yml",
+            spec_file=str(resolve_resource_path("environment-cuda128.yml")),
             channels=["conda-forge", "defaults"],
         )
         .pip_install("modal", "questionary")

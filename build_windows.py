@@ -209,6 +209,21 @@ def build():
 
     # Verify build succeeded and check for CUDA libraries
     if result.returncode == 0:
+        # Build modal_infer if modal.spec is present (separate target).
+        modal_spec = Path("modal.spec")
+        if modal_spec.exists():
+            modal_cmd = [
+                sys.executable, "-m", "PyInstaller",
+                "--clean",
+                "--noconfirm",
+                str(modal_spec),
+            ]
+            print(f"\nRunning: {' '.join(modal_cmd)}")
+            modal_result = subprocess.run(modal_cmd, capture_output=False)
+            if modal_result.returncode != 0:
+                print("\nModal build failed!")
+                return 1
+
         dist_root = Path("dist")
         dist_dir = dist_root / "faster_whisper_transwithai_chickenrice"
         engine_dir = dist_root / "engine"

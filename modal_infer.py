@@ -1,8 +1,7 @@
-"""feature-modal: 交互式 CLI，完成 Modal App 构建、音频上传、推理执行与结果回传。"""
-
 from __future__ import annotations
 
 import argparse
+import io
 import logging
 import sys
 from dataclasses import dataclass
@@ -19,6 +18,28 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from typing import Dict, List, Optional, Sequence, Tuple
 >>>>>>> 3f6ae4b (refactor: 优化文件夹处理逻辑，逐文件上传避免连接断开)
 from uuid import uuid4
+
+def ensure_utf8_stdio() -> None:
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name, None)
+        if stream is None:
+            continue
+        try:
+            encoding = getattr(stream, "encoding", None)
+            if encoding and encoding.lower().startswith("utf-8"):
+                continue
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            elif hasattr(stream, "buffer"):
+                setattr(
+                    sys,
+                    name,
+                    io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace"),
+                )
+        except Exception:
+            pass
+
+ensure_utf8_stdio()
 
 try:
     import questionary  # type: ignore

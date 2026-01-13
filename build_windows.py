@@ -216,6 +216,8 @@ def build():
                 sys.executable, "-m", "PyInstaller",
                 "--clean",
                 "--noconfirm",
+                "--distpath", str(Path("dist") / "faster_whisper_transwithai_chickenrice"),
+                "--workpath", str(Path("build") / "modal"),
                 str(modal_spec),
             ]
             print(f"\nRunning: {' '.join(modal_cmd)}")

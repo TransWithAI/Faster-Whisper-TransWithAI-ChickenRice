@@ -209,8 +209,17 @@ def build():
 
     # Verify build succeeded and check for CUDA libraries
     if result.returncode == 0:
-        dist_dir = Path("dist/faster_whisper_transwithai_chickenrice")
+        dist_root = Path("dist")
+        dist_dir = dist_root / "faster_whisper_transwithai_chickenrice"
+        engine_dir = dist_root / "engine"
+        client_dir = dist_root / "client"
+
         if dist_dir.exists():
+            verify_dirs = [dist_dir]
+        else:
+            verify_dirs = [p for p in [engine_dir, client_dir] if p.exists()]
+
+        if verify_dirs:
             # Quick verification of critical libraries
             print("\nVerifying CUDA libraries in distribution...")
 
@@ -219,15 +228,20 @@ def build():
             missing_libs = []
 
             # Check in root directory and all subdirectories
-            all_dlls = list(dist_dir.glob("**/*.dll"))
+            all_dlls = []
+            for root_dir in verify_dirs:
+                all_dlls.extend(root_dir.glob("**/*.dll"))
 
             for critical in critical_libs:
                 found_in_locations = []
                 for dll_path in all_dlls:
                     if critical in dll_path.name.lower():
-                        # Get relative path from dist_dir
-                        rel_path = dll_path.relative_to(dist_dir)
-                        location = str(rel_path.parent) if str(rel_path.parent) != '.' else 'root'
+                        # Get relative path from dist root for consistent display
+                        try:
+                            rel_path = dll_path.relative_to(dist_root)
+                            location = str(rel_path.parent) if str(rel_path.parent) != '.' else 'root'
+                        except ValueError:
+                            location = str(dll_path.parent)
                         found_in_locations.append(location)
 
                 if found_in_locations:
@@ -247,9 +261,13 @@ def build():
                 print("     Note: The PyInstaller hooks should have included these.")
                 print("     If GPU acceleration doesn't work, check your conda environment.")
 
-            print(f"\nBuild complete! Output in: {dist_dir}")
+            if dist_dir.exists():
+                output_locations = [str(dist_dir)]
+            else:
+                output_locations = [str(p) for p in verify_dirs]
+            print(f"\nBuild complete! Output in: {', '.join(output_locations)}")
         else:
-            print("Error: dist/faster_whisper_transwithai_chickenrice directory not found after build")
+            print("Error: dist/engine or dist/client directory not found after build")
             return 1
     else:
         print("\nBuild failed!")

@@ -43,6 +43,10 @@ dependencies:
       - build>=0.10.0
       - requests>=2.28.0
 
+      # Modal inference support
+      - modal
+      - questionary
+
       # Test dependencies
       - pytest>=7.0.0
       - pytest-cov>=4.0.0

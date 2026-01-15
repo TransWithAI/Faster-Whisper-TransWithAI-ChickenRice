@@ -94,6 +94,83 @@ GPU模式（仅限NVIDIA显卡）:
 
 ---
 
+=== Modal 云端推理模式 ===
+
+如果本地没有GPU或显存不足，可以使用Modal云端GPU进行推理。
+
+1. 环境配置：
+
+使用 Conda 创建轻量级环境（仅需 modal 和 questionary 库）：
+
+```bash
+conda env create -f environment-modal.yml
+conda activate faster-whisper-modal
+```
+
+或手动安装：
+```bash
+pip install modal questionary
+```
+
+2. Modal 账号设置：
+
+(1) 注册 Modal 账号：
+   访问 https://modal.com/ 注册账号
+   新用户每月有 $30 免费额度，足够处理大量音频
+
+(2) 配置 Modal Token：
+   在终端运行：
+   ```bash
+   modal token new
+   ```
+   按提示完成浏览器授权
+
+(3) 配置 HuggingFace Token（可选但推荐）：
+
+   为什么需要配置：
+   - Modal 需要从 HuggingFace 下载模型文件
+   - 某些模型需要登录才能下载
+   - 配置后可避免下载失败或速度慢的问题
+
+   如何配置：
+   a. 获取 HF Token：
+      访问 https://huggingface.co/settings/tokens
+      创建一个 Read 权限的 token
+
+   b. 在 Modal 中添加 Secret：
+      访问 https://modal.com/secrets
+      点击 "Create new secret"
+      选择 "Hugging Face" 类型
+      输入你的 HF Token
+      保存为 "huggingface-secret"
+
+3. 运行 Modal 推理：
+
+```bash
+python modal_infer.py
+```
+
+程序会交互式询问：
+- GPU 类型：T4（推荐）、A10G、A100、H100 等
+- 模型选择：基础版、海南鸡（日文转中文优化）、自定义模型
+- 输入文件：本地音频文件或文件夹路径
+- 批处理选项：是否启用批处理加速（需要更高显存）
+- 超时时间：任务超时时间（分钟）
+
+处理流程：
+1. 上传本地音频文件到 Modal Volume
+2. 在云端 GPU 上运行推理
+3. 自动下载生成的字幕文件到本地
+4. 输出结果保存在源文件同目录
+
+注意事项：
+- 首次运行需要构建 Docker 镜像，可能需要几分钟
+- 模型首次下载会缓存在 Modal Volume，后续运行更快
+- 推荐使用 T4 GPU，性价比最高
+- 批处理模式可显著加速，但需要更多显存
+
+---
+
 相关项目：
 
 - Faster Whisper: https://github.com/SYSTRAN/faster-whisper

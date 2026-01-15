@@ -373,10 +373,51 @@ jobs:
         find dist/faster_whisper_transwithai_chickenrice -maxdepth 1 \( -name "*.bat" -o -name "*.txt" -o -name "*.md" -o -name "*.json5" \) -printf "%M %u %g %s %TY-%Tm-%Td %TH:%TM %p\n" 2>/dev/null || echo "No batch/text/config files found"
 
     - name: Test executable (CPU mode)
-      shell: cmd /C CALL {0}
+      shell: bash -el {0}
       run: |
-        cd dist\faster_whisper_transwithai_chickenrice
-        infer.exe --help
+        cd dist/faster_whisper_transwithai_chickenrice
+
+        echo "Testing infer.exe --help..."
+        INFER_OUTPUT=$(./infer.exe --help 2>&1)
+        echo "$INFER_OUTPUT"
+
+        # Verify infer.exe output contains expected strings
+        if echo "$INFER_OUTPUT" | grep -q "Whisper transcription with custom VAD injection"; then
+          echo "✓ Found expected description in infer.exe output"
+        else
+          echo "✗ Missing expected description in infer.exe output"
+          exit 1
+        fi
+
+        if echo "$INFER_OUTPUT" | grep -q "positional arguments:"; then
+          echo "✓ Found positional arguments section"
+        else
+          echo "✗ Missing positional arguments section"
+          exit 1
+        fi
+
+        if echo "$INFER_OUTPUT" | grep -q -- "--model_name_or_path"; then
+          echo "✓ Found --model_name_or_path argument"
+        else
+          echo "✗ Missing --model_name_or_path argument"
+          exit 1
+        fi
+
+        echo ""
+        echo "Testing modal_infer.exe --help..."
+        MODAL_OUTPUT=$(./modal_infer.exe --help 2>&1)
+        echo "$MODAL_OUTPUT"
+
+        # Verify modal_infer.exe output contains expected strings
+        if echo "$MODAL_OUTPUT" | grep -qi "modal"; then
+          echo "✓ Found 'modal' in modal_infer.exe output"
+        else
+          echo "✗ Missing 'modal' in modal_infer.exe output"
+          exit 1
+        fi
+
+        echo ""
+        echo "All executable tests passed!"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4

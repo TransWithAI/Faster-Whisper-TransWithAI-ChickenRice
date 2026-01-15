@@ -22,12 +22,14 @@ High-performance audio/video transcription and translation tool - Japanese-to-Ch
 - 🚀 基于 [SYSTRAN/faster-whisper](https://github.com/SYSTRAN/faster-whisper) 开发
 - 🐔 使用 [chickenrice0721/whisper-large-v2-translate-zh-v0.2-st](https://huggingface.co/chickenrice0721/whisper-large-v2-translate-zh-v0.2-st) 日文转中文优化模型
 - 🔊 使用 [TransWithAI/Whisper-Vad-EncDec-ASMR-onnx](https://huggingface.co/TransWithAI/Whisper-Vad-EncDec-ASMR-onnx) 音声优化 VAD 模型
+- ☁️ 感谢 [@Randomless](https://github.com/Randomless) 贡献 Modal 云端推理功能
 - 💪 **感谢某匿名群友的算力和技术支持**
 
 ## ✨ 功能特性 / Features
 
 - 🎯 **高精度日文转中文翻译**: 基于5000小时音频数据训练的"海南鸡v2"日文转中文优化模型
 - 🚀 **GPU加速**: 支持CUDA 11.8/12.2/12.8，充分利用NVIDIA显卡性能
+- ☁️ **云端推理**: 支持 Modal 云端 GPU 推理，无本地显卡也能使用
 - 📝 **多格式输出**: 支持SRT、VTT、LRC等多种字幕格式
 - 🎬 **音视频支持**: 支持常见音频(mp3/wav/flac等)和视频格式(mp4/mkv/avi等)
 - 💾 **智能缓存**: 自动跳过已处理文件，提高批量处理效率
@@ -80,6 +82,47 @@ High-performance audio/video transcription and translation tool - Japanese-to-Ch
 运行(翻译视频)(GPU).bat
 ```
 
+## ☁️ Modal 云端推理 / Cloud Inference
+
+无本地 GPU 或显存不足？使用 Modal 云端 GPU 进行推理：
+
+### 1. 环境配置
+
+```bash
+# 使用现有 Conda 环境（已包含 modal 支持）
+conda activate faster-whisper-cu118  # 或 cu122, cu128
+
+# 或手动安装
+pip install modal questionary
+```
+
+### 2. Modal 账号设置
+
+```bash
+# 注册账号：https://modal.com/（新用户每月 $30 免费额度）
+# 配置 Token
+modal token new
+```
+
+### 3. 运行云端推理
+
+```bash
+# 使用打包版本
+modal_infer.exe
+
+# 或使用 Python
+python modal_infer.py
+```
+
+程序会交互式询问 GPU 类型、模型选择、输入文件等参数。
+
+**推荐配置**：T4 GPU 性价比最高，适合一般转录任务。
+
+> ⚠️ 本项目与 Modal 无任何关联，如有赞助意向，请提交 Issue。
+> Not affiliated with Modal. For sponsorship inquiries, please open an issue.
+
+详细说明请参考 [使用说明](使用说明.txt) 中的 "Modal 云端推理模式" 部分。
+
 ## 📖 详细文档 / Documentation
 
 - 📝 [使用说明](使用说明.txt) - 详细的使用指南和参数配置
@@ -123,6 +166,7 @@ High-performance audio/video transcription and translation tool - Japanese-to-Ch
 - **海南鸡模型**: https://huggingface.co/chickenrice0721/whisper-large-v2-translate-zh-v0.2-st
 - **音声优化 VAD 模型**: https://huggingface.co/TransWithAI/Whisper-Vad-EncDec-ASMR-onnx
 - **OpenAI Whisper**: https://github.com/openai/whisper
+- **Modal 云端平台**: https://modal.com/
 - **AI汉化组**: https://t.me/transWithAI
 
 ## 💡 常见问题 / FAQ
@@ -134,7 +178,7 @@ A: 确认是否为NVIDIA显卡，更新显卡驱动到最新版本
 A: 检查文件格式是否支持，查看控制台错误信息，尝试使用 `--overwrite` 参数
 
 **Q: 内存/显存不足？**
-A: 使用低显存模式或切换到CPU模式
+A: 使用低显存模式、切换到CPU模式，或使用 Modal 云端推理
 
 **Q: 如何选择CUDA版本？**
 A: 运行 `nvidia-smi` 查看CUDA Version，参考[发行说明](RELEASE_NOTES_CN.md)中的兼容性表
@@ -146,6 +190,10 @@ A: 运行 `nvidia-smi` 查看CUDA Version，参考[发行说明](RELEASE_NOTES_C
 2. 检查显卡驱动是否为最新版本
 3. 确认选择了正确的CUDA版本
 4. 提交Issue到项目仓库
+
+## ⭐ 小星星 / Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=TransWithAI/Faster-Whisper-TransWithAI-ChickenRice&type=Date)](https://star-history.com/#TransWithAI/Faster-Whisper-TransWithAI-ChickenRice&Date)
 
 ## 📄 许可证 / License
 

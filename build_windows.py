@@ -210,6 +210,43 @@ def build():
     # Verify build succeeded and check for CUDA libraries
     if result.returncode == 0:
         dist_dir = Path("dist/faster_whisper_transwithai_chickenrice")
+        # Build modal_infer if modal.spec is present (separate target).
+        modal_spec = Path("modal.spec")
+        if modal_spec.exists():
+            # Ensure modal dependencies are available in the current env.
+            try:
+                import modal  # noqa: F401
+                import questionary  # noqa: F401
+            except ImportError:
+                print("\nmodal/questionary not found; installing for modal.spec build...")
+                install_cmd = [
+                    sys.executable, "-m", "pip", "install",
+                    "modal", "questionary",
+                ]
+                install_result = subprocess.run(install_cmd, capture_output=False)
+                if install_result.returncode != 0:
+                    print("\nFailed to install modal/questionary.")
+                    return 1
+
+            modal_cmd = [
+                sys.executable, "-m", "PyInstaller",
+                "--clean",
+                "--noconfirm",
+                "--distpath", str(Path("dist") / "faster_whisper_transwithai_chickenrice"),
+                "--workpath", str(Path("build") / "modal"),
+                str(modal_spec),
+            ]
+            print(f"\nRunning: {' '.join(modal_cmd)}")
+            modal_result = subprocess.run(modal_cmd, capture_output=False)
+            if modal_result.returncode != 0:
+                print("\nModal build failed!")
+                return 1
+
+        dist_root = Path("dist")
+        dist_dir = dist_root / "faster_whisper_transwithai_chickenrice"
+        engine_dir = dist_root / "engine"
+        client_dir = dist_root / "client"
+
         if dist_dir.exists():
             # Quick verification of critical libraries
             print("\nVerifying CUDA libraries in distribution...")
@@ -259,3 +296,4 @@ def build():
 
 if __name__ == "__main__":
     sys.exit(build())
+    

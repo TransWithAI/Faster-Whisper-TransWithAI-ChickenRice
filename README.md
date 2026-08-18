@@ -270,7 +270,7 @@ A: 运行 `nvidia-smi` 查看CUDA Version，参考[发行说明](RELEASE_NOTES_C
 
 ## ⭐ 小星星 / Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TransWithAI/Faster-Whisper-TransWithAI-ChickenRice&type=Date)](https://star-history.com/#TransWithAI/Faster-Whisper-TransWithAI-ChickenRice&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=TransWithAI/Faster-Whisper-TransWithAI-ChickenRice&type=Date)](https://star-history.dera.page/#TransWithAI/Faster-Whisper-TransWithAI-ChickenRice&Date)
 
 ## 📄 许可证 / License
 

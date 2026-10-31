@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/api.ts","./src/i18n.tsx","./src/main.tsx","./src/components/logpanel.tsx","./src/pages/aboutpage.tsx","./src/pages/configpage.tsx","./src/pages/envpage.tsx","./src/pages/modalpage.tsx","./src/pages/modelspage.tsx","./src/pages/taskpage.tsx"],"version":"5.9.3"}

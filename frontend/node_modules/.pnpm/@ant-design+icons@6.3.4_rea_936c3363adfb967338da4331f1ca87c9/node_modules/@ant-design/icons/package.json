@@ -1,0 +1,135 @@
+{
+  "name": "@ant-design/icons",
+  "version": "6.3.4",
+  "repository": "https://github.com/ant-design/ant-design-icons/tree/master/packages/icons-react",
+  "license": "MIT",
+  "contributors": [
+    "HeskeyBaozi<hezhiyu233@foxmail.com>",
+    "vagusX<vagusxl@gmail.com>"
+  ],
+  "sideEffects": false,
+  "main": "./lib/index.js",
+  "unpkg": "./dist/index.umd.js",
+  "module": "./es/index.js",
+  "typings": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "node": {
+        "import": "./index.mjs"
+      },
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    },
+    "./es": {
+      "types": "./lib/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    },
+    "./lib": {
+      "types": "./lib/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    },
+    "./es/*": {
+      "types": "./lib/*.d.ts",
+      "import": "./es/*.js",
+      "require": "./lib/*.js"
+    },
+    "./es/components/*": {
+      "types": "./lib/components/*.d.ts",
+      "import": "./es/components/*.js",
+      "require": "./lib/components/*.js"
+    },
+    "./es/icons": {
+      "types": "./lib/icons/index.d.ts",
+      "import": "./es/icons/index.js",
+      "require": "./lib/icons/index.js"
+    },
+    "./lib/*": {
+      "types": "./lib/*.d.ts",
+      "import": "./es/*.js",
+      "require": "./lib/*.js"
+    },
+    "./lib/components/*": {
+      "types": "./lib/components/*.d.ts",
+      "import": "./es/components/*.js",
+      "require": "./lib/components/*.js"
+    },
+    "./lib/icons": {
+      "types": "./lib/icons/index.d.ts",
+      "import": "./es/icons/index.js",
+      "require": "./lib/icons/index.js"
+    },
+    "./package.json": "./package.json",
+    "./*": {
+      "types": "./lib/icons/*.d.ts",
+      "import": "./es/icons/*.js",
+      "require": "./lib/icons/*.js"
+    }
+  },
+  "scripts": {
+    "ci": "NODE_ENV=ci npm run prepublishOnly",
+    "clean": "./scripts/cleanup.sh",
+    "compile": "father build",
+    "generate": "rimraf src/icons && TS_NODE_PROJECT=scripts/tsconfig.json node -r ts-node/register scripts/generate.ts",
+    "lint": "eslint src/ --ext .tsx,.ts",
+    "prepublishOnly": "npm run generate && npm run compile && npm run lint && npm run test",
+    "start": "dumi dev",
+    "test": "vitest run",
+    "test:bundle-size": "node scripts/bundle-size-smoke.js",
+    "test:watch": "vitest",
+    "test:local": "npm run generate && npm run compile && npm run test"
+  },
+  "dependencies": {
+    "@ant-design/colors": "^8.0.1",
+    "@ant-design/icons-svg": "^4.6.0",
+    "@rc-component/util": "^1.11.0",
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@rc-component/father-plugin": "^2.3.0",
+    "@rc-component/np": "^1.0.4",
+    "@swc/core": "^1.15.30",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "antd": "^4.24.16",
+    "dumi": "^1.1.54",
+    "eslint": "^9.39.4",
+    "eslint-plugin-jest": "^28.14.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "father": "^4.6.19",
+    "glob": "^7.2.3",
+    "jsdom": "^25.0.1",
+    "history": "^4.10.1",
+    "lodash": "^4.18.1",
+    "pkg-dir": "4.0.0",
+    "prettier": "^3.8.3",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "rimraf": "^3.0.2",
+    "styled-components": "^3.4.10",
+    "ts-node": "^8.10.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.59.0",
+    "vite": "^8.0.9",
+    "vitest": "^4.1.5"
+  },
+  "peerDependencies": {
+    "react": ">=16.0.0",
+    "react-dom": ">=16.0.0"
+  },
+  "engines": {
+    "node": ">=8"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

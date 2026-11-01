@@ -73,6 +73,29 @@ if not IS_FROZEN:
 
 logger = logging.getLogger("desktop")
 
+# 模型下载源。仅收录与 HuggingFace 协议兼容的端点（有 /api、/resolve 路径）；
+# ModelScope 之类协议不同的站点不能直接当 endpoint 用，只能作为替代社区。
+DOWNLOAD_SOURCES = [
+    {
+        "id": "auto",
+        "label": "自动（官方优先，失败切换 hf-mirror）",
+        "endpoint": "",
+        "note": "默认：优先官方源，失败或超时时自动改用 hf-mirror.com",
+    },
+    {
+        "id": "hf-mirror",
+        "label": "hf-mirror.com（国内推荐）",
+        "endpoint": "https://hf-mirror.com",
+        "note": "国内公益镜像，与 HuggingFace 协议完全一致，国内网络通常最快最稳",
+    },
+    {
+        "id": "official",
+        "label": "Hugging Face 官方",
+        "endpoint": "https://huggingface.co",
+        "note": "官方源；海外网络或已配置代理时使用",
+    },
+]
+
 
 def _is_main_model_dir(d: Path) -> bool:
     has_weights = (d / "model.bin").exists() or (d / "model.safetensors").exists()
@@ -457,6 +480,10 @@ class Api:
                 args += ["--target-dir", opts["target_dir"]]
             if opts.get("force"):
                 args.append("--force")
+            # 下载源：空表示交给脚本默认逻辑（官方优先 + 自动回退镜像）
+            endpoint = str(opts.get("endpoint") or "").strip()
+            if endpoint:
+                args += ["--endpoint", endpoint]
             try:
                 kwargs = {
                     "stdout": subprocess.PIPE,
@@ -646,6 +673,9 @@ class Api:
 
     def saveGenerationConfig(self, raw: str):
         return self.save_generation_config(raw)
+
+    def getDownloadSources(self):
+        return {"ok": True, "sources": DOWNLOAD_SOURCES}
 
 
 class _StaticRequestHandler(http.server.SimpleHTTPRequestHandler):

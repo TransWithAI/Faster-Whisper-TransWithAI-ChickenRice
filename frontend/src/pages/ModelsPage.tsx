@@ -14,7 +14,7 @@ import {
   message,
 } from "antd";
 import { CaretRightOutlined, ReloadOutlined, StopOutlined } from "@ant-design/icons";
-import { getApi, onEvent, ModelInfo } from "../api";
+import { getApi, onEvent, DownloadSource, ModelInfo } from "../api";
 import LogPanel from "../components/LogPanel";
 
 const PRESETS = [
@@ -35,6 +35,31 @@ const PRESETS = [
   },
 ];
 
+// 后端不可用时的兜底清单（正常情况下由 app.py 的 DOWNLOAD_SOURCES 提供）
+const FALLBACK_SOURCES: DownloadSource[] = [
+  {
+    id: "auto",
+    label: "自动（官方优先，失败切换 hf-mirror）",
+    endpoint: "",
+    note: "默认：优先官方源，失败或超时时自动改用 hf-mirror.com",
+  },
+  {
+    id: "hf-mirror",
+    label: "hf-mirror.com（国内推荐）",
+    endpoint: "https://hf-mirror.com",
+    note: "国内公益镜像，与 HuggingFace 协议完全一致，国内网络通常最快最稳",
+  },
+  {
+    id: "official",
+    label: "Hugging Face 官方",
+    endpoint: "https://huggingface.co",
+    note: "官方源；海外网络或已配置代理时使用",
+  },
+];
+
+const CUSTOM_NOTE =
+  "自定义端点需兼容 HuggingFace 协议（支持 /api/models 与 /resolve 路径），例如自建反代。";
+
 export default function ModelsPage() {
   const [api, setApi] = useState<ReturnType<typeof getApi> | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
@@ -42,7 +67,13 @@ export default function ModelsPage() {
   const [form] = Form.useForm();
   const [logKey, setLogKey] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [sources, setSources] = useState<DownloadSource[]>(FALLBACK_SOURCES);
   const downloadingRef = React.useRef(false);
+  const sourceValue = Form.useWatch("source", form) as string | undefined;
+
+  const currentSource =
+    sources.find((s) => s.id === (sourceValue || "auto")) || sources[0];
+  const currentNote = sourceValue === "custom" ? CUSTOM_NOTE : currentSource?.note || "";
 
   useEffect(() => {
     const w = window as unknown as { pywebview?: { api: unknown } };
@@ -68,6 +99,17 @@ export default function ModelsPage() {
     if (api) refresh();
   }, [api, refresh]);
 
+  // 下载源清单由后端提供，读取失败时沿用本地兜底列表
+  useEffect(() => {
+    if (!api) return;
+    api
+      .getDownloadSources()
+      .then((r) => {
+        if (r.ok && r.sources && r.sources.length > 0) setSources(r.sources);
+      })
+      .catch(() => {});
+  }, [api]);
+
   useEffect(() => {
     const off = onEvent((e) => {
       if (e.type === "download_exit") {
@@ -92,10 +134,19 @@ export default function ModelsPage() {
       return;
     }
     setLogKey((k) => k + 1);
+    const endpoint =
+      v.source === "custom"
+        ? String(v.custom_endpoint || "").trim()
+        : currentSource?.endpoint || undefined;
+    if (v.source === "custom" && !endpoint) {
+      message.warning("请填写自定义下载源地址");
+      return;
+    }
     const r = await api.downloadModel({
       repo: v.repo,
       target_dir: v.target_dir || undefined,
       force: !!v.force,
+      endpoint: endpoint || undefined,
     });
     if (r.ok) {
       downloadingRef.current = true;
@@ -156,7 +207,7 @@ export default function ModelsPage() {
         </Card>
 
         <Card size="small" title="下载新模型" style={{ marginTop: 12 }}>
-          <Form form={form} layout="vertical" size="small">
+          <Form form={form} layout="vertical" size="small" initialValues={{ source: "auto" }}>
             <Form.Item name="repo" label="HuggingFace 仓库">
               <Select
                 showSearch
@@ -172,6 +223,19 @@ export default function ModelsPage() {
                 }
               />
             </Form.Item>
+            <Form.Item name="source" label="下载源（HuggingFace 端点）">
+              <Select
+                options={[
+                  ...sources.map((s) => ({ value: s.id, label: s.label })),
+                  { value: "custom", label: "自定义端点…" },
+                ]}
+              />
+            </Form.Item>
+            {sourceValue === "custom" && (
+              <Form.Item name="custom_endpoint" label="自定义端点地址（需兼容 HuggingFace 协议）">
+                <Input placeholder="https://your-mirror.example.com" allowClear />
+              </Form.Item>
+            )}
             <Row gutter={12}>
               <Col span={12}>
                 <Form.Item name="target_dir" label="目标子目录（留空 = 仓库名）">
@@ -213,8 +277,12 @@ export default function ModelsPage() {
               </Button>
             </Space>
             <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
+              当前源：{currentNote}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
               下载始终包含音声优化 VAD 模型与 whisper-base 特征提取文件（离线运行所需）。
-              无法访问 HuggingFace 时会自动尝试 hf-mirror.com 镜像。
+              国内推荐 <strong>hf-mirror.com</strong>（与 HuggingFace 协议一致，可整体换源）；
+              ModelScope（魔搭）是独立模型社区、接口不兼容，只能作为替代渠道手动下载。
             </Typography.Text>
           </Form>
         </Card>

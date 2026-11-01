@@ -71,6 +71,15 @@ export interface DownloadOptions {
   force?: boolean;
   skip_vad?: boolean;
   skip_whisper_base?: boolean;
+  /** 下载源端点；留空 = 默认逻辑（官方优先，失败自动切 hf-mirror） */
+  endpoint?: string;
+}
+
+export interface DownloadSource {
+  id: string;
+  label: string;
+  endpoint: string;
+  note: string;
 }
 
 export type AppEvent =
@@ -92,6 +101,7 @@ export interface PyWebViewApi {
   selectFolder(title: string): Promise<{ ok: boolean; path: string | null }>;
   listModels(): Promise<{ ok: boolean; model_dir: string; models: ModelInfo[]; error?: string }>;
   downloadModel(opts: DownloadOptions): Promise<ApiResult>;
+  getDownloadSources(): Promise<{ ok: boolean; sources: DownloadSource[] }>;
   cancelDownload(): Promise<ApiResult>;
   startTask(opts: TaskOptions): Promise<ApiResult>;
   cancelTask(): Promise<ApiResult>;

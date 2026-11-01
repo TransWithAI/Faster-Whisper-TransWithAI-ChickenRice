@@ -64,6 +64,14 @@ def merge_with_cli(cli_dist_dir: Path | None):
     shutil.copy2(gui_exe, target / f"{GUI_NAME}.exe")
     print("OK  GUI exe 已拷贝")
 
+    # 同一次 COLLECT 产出的其它入口（如 download_models.exe）也要一并带上，
+    # 否则 GUI 的「下载模型」会提示“未找到 download_models 入口”。
+    other_exes = [p for p in sorted(gui_dir.glob("*.exe")) if p.name != f"{GUI_NAME}.exe"]
+    for exe_file in other_exes:
+        shutil.copy2(exe_file, target / exe_file.name)
+    if other_exes:
+        print("OK  其它入口已拷贝: " + ", ".join(p.name for p in other_exes))
+
     gui_internal = gui_dir / "_internal"
     target_internal = target / "_internal"
     if gui_internal.is_dir():

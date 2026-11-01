@@ -102,7 +102,7 @@ if os.path.isdir(frontend_dist):
 else:
     print("WARNING: frontend/dist 不存在，请先在 frontend/ 执行 pnpm build")
 
-# ---------- 入口 ----------
+# ---------- 入口 1：GUI 主程序 ----------
 a = Analysis(
     [os.path.join(ROOT, 'desktop', 'app.py')],
     pathex=['src'],
@@ -138,11 +138,57 @@ exe = EXE(
     icon=os.path.join(ROOT, 'transwithai.ico') if os.path.exists(os.path.join(ROOT, 'transwithai.ico')) else None,
 )
 
+# ---------- 入口 2：模型下载器 ----------
+# GUI 的「模型管理 → 下载」通过子进程调用同目录的 download_models.exe
+# （见 desktop/app.py 的 Api._download_command）。若不打包，界面会提示
+# “未找到 download_models 入口”，因此这里与 GUI 打进同一个 COLLECT，
+# 共用同一份 _internal 依赖。
+a_dl = Analysis(
+    [os.path.join(ROOT, 'download_models.py')],
+    pathex=['src'],
+    binaries=[],
+    datas=[],
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[
+        'matplotlib', 'tkinter', 'PyQt5', 'PyQt6', 'PySide2', 'PySide6',
+        'notebook', 'jupyter', 'IPython', 'pytest', 'modal', 'questionary',
+    ],
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz_dl = PYZ(a_dl.pure, a_dl.zipped_data, cipher=block_cipher)
+
+exe_dl = EXE(
+    pyz_dl,
+    a_dl.scripts,
+    [],
+    exclude_binaries=True,
+    name='download_models',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    # 由 GUI 以 CREATE_NO_WINDOW 启动，不会弹控制台；
+    # 保持 console=True 以确保 stdout 管道可用（GUI 靠它推送下载日志）。
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    icon=os.path.join(ROOT, 'transwithai.ico') if os.path.exists(os.path.join(ROOT, 'transwithai.ico')) else None,
+)
+
 coll = COLLECT(
     exe,
     a.binaries,
     a.zipfiles,
     a.datas,
+    exe_dl,
+    a_dl.binaries,
+    a_dl.zipfiles,
+    a_dl.datas,
     strip=False,
     upx=False,
     upx_exclude=[],

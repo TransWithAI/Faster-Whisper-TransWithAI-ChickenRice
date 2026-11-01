@@ -1,3 +1,0 @@
-// This icon file is generated automatically.
-var AnthropicFilled = { "icon": { "tag": "svg", "attrs": { "viewBox": "64 64 896 896", "focusable": "false" }, "children": [{ "tag": "path", "attrs": { "d": "M710.02 196.2H572.94l249.98 631.6H960zm-396.04 0L64 827.8h139.78l51.12-132.63h261.53l51.12 132.64h139.79L457.36 196.19zm-13.86 381.66l85.55-221.97 85.54 221.97z" } }] }, "name": "anthropic", "theme": "filled" };
-export default AnthropicFilled;

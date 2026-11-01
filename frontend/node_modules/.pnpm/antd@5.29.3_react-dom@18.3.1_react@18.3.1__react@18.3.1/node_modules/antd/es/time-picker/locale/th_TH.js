@@ -1,5 +1,0 @@
-const locale = {
-  placeholder: 'เลือกเวลา',
-  rangePlaceholder: ['เวลาเริ่มต้น', 'เวลาสิ้นสุด']
-};
-export default locale;

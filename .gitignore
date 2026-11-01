@@ -34,7 +34,8 @@ MANIFEST
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
-!project.spec  # Keep our custom spec file
+# Keep our custom spec file
+!project.spec
 
 # Installer logs
 pip-log.txt
@@ -203,3 +204,25 @@ desktop.ini
 .claude/
 
 models/
+
+# ===== 前端 / Node.js =====
+# pnpm 依赖目录：体积大且与平台相关，可用 pnpm install 完整还原
+node_modules/
+.pnpm-store/
+
+# 前端构建产物（pnpm build 可重新生成；上文 dist/ 已覆盖，这里显式声明更清晰）
+frontend/dist/
+
+# TypeScript 增量构建缓存
+*.tsbuildinfo
+
+# Vite 缓存
+.vite/
+
+# pnpm 调试日志
+pnpm-debug.log*
+
+# ===== 桌面版打包 / 本地验证产生的临时文件 =====
+# PyInstaller 的 build/、dist/ 已由上文规则覆盖，这里补充零散产物
+verify_*.png
+verify_*.txt

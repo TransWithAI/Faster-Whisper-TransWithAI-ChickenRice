@@ -84,14 +84,38 @@ DOWNLOAD_MAX_RETRIES = 5
 DOWNLOAD_RETRY_BACKOFF_SECONDS = 1.0
 DOWNLOAD_MAX_RETRY_DELAY_SECONDS = 30.0
 
-HF_HOST = "https://huggingface.co/"
-HF_MIRROR_HOST = "https://hf-mirror.com/"
+HF_ENDPOINT_DEFAULT = "https://huggingface.co"
+HF_ENDPOINT_CN_MIRROR = "https://hf-mirror.com"
 
 
-def _mirror_url(url: str) -> str | None:
-    """Return the hf-mirror.com equivalent of a huggingface.co URL, if applicable."""
-    if url.startswith(HF_HOST):
-        return HF_MIRROR_HOST + url[len(HF_HOST) :]
+def normalize_endpoint(value: str | None) -> str:
+    """把用户输入的下载源规整成可用的 endpoint（补协议、去尾部斜杠）。"""
+    endpoint = (value or "").strip()
+    if not endpoint:
+        return HF_ENDPOINT_DEFAULT
+    if not endpoint.startswith(("http://", "https://")):
+        endpoint = "https://" + endpoint
+    return endpoint.rstrip("/")
+
+
+# 当前使用的 HuggingFace 端点：优先级 --endpoint > 环境变量 HF_ENDPOINT > 官方。
+# 兼容 hf-mirror.com 等与官方协议一致的镜像；ModelScope 之类协议不同的站点不能直接用。
+HF_ENDPOINT = normalize_endpoint(os.environ.get("HF_ENDPOINT"))
+
+
+def _fallback_url(url: str) -> str | None:
+    """返回同一资源的备用源地址：官方 ↔ hf-mirror 之间互相回退。
+
+    若当前使用的是自定义端点（非上面两者），则不做自动回退。
+    """
+    current_host = HF_ENDPOINT + "/"
+    if not url.startswith(current_host):
+        return None
+    tail = url[len(current_host) :]
+    if HF_ENDPOINT == HF_ENDPOINT_DEFAULT:
+        return HF_ENDPOINT_CN_MIRROR + "/" + tail
+    if HF_ENDPOINT == HF_ENDPOINT_CN_MIRROR:
+        return HF_ENDPOINT_DEFAULT + "/" + tail
     return None
 
 
@@ -187,15 +211,16 @@ def download_file(url: str, dest_path: Path, session: requests.Session | None = 
         print(f"  {CHECKMARK} {dest_path.name} already exists")
         return True
 
-    # Try the primary host first, then fall back to the hf-mirror.com mirror.
+    # Try the primary endpoint first, then fall back to the paired mirror
+    # (official -> hf-mirror, or hf-mirror -> official).
     candidate_urls = [url]
-    mirror_url = _mirror_url(url)
-    if mirror_url:
-        candidate_urls.append(mirror_url)
+    fallback_url = _fallback_url(url)
+    if fallback_url:
+        candidate_urls.append(fallback_url)
 
     for attempt_index, candidate_url in enumerate(candidate_urls):
         if attempt_index > 0:
-            print(f"  {WARNING} Falling back to hf-mirror.com for {dest_path.name}...")
+            print(f"  {WARNING} Retrying {dest_path.name} from fallback source: {fallback_url}")
         if _download_from_url(candidate_url, dest_path, session):
             return True
 
@@ -204,7 +229,7 @@ def download_file(url: str, dest_path: Path, session: requests.Session | None = 
 
 def get_hf_api_files(repo_id: str) -> list[str]:
     """Get list of files from Hugging Face repo using API"""
-    api_url = f"https://huggingface.co/api/models/{repo_id}/tree/main"
+    api_url = f"{HF_ENDPOINT}/api/models/{repo_id}/tree/main"
 
     try:
         response = requests.get(api_url, timeout=10)
@@ -218,7 +243,7 @@ def get_hf_api_files(repo_id: str) -> list[str]:
 
 def download_hf_model(repo_id: str, target_dir: str | None = None):
     """Download model files from any HuggingFace repository"""
-    base_url = f"https://huggingface.co/{repo_id}/resolve/main/"
+    base_url = f"{HF_ENDPOINT}/{repo_id}/resolve/main/"
 
     # Determine target directory
     if target_dir:
@@ -274,7 +299,7 @@ def download_hf_model(repo_id: str, target_dir: str | None = None):
 def download_vad_model():
     """Download VAD ONNX model files (always required)"""
     repo_id = "TransWithAI/Whisper-Vad-EncDec-ASMR-onnx"
-    base_url = f"https://huggingface.co/{repo_id}/resolve/main/"
+    base_url = f"{HF_ENDPOINT}/{repo_id}/resolve/main/"
     models_dir = Path("models")
 
     print(f"\n{PACKAGE} Downloading VAD ONNX model from {repo_id}")
@@ -306,7 +331,7 @@ def download_whisper_base_for_feature_extractor():
     """Download whisper-base model files specifically for feature extractor (offline usage)"""
     repo_id = "openai/whisper-base"
     models_dir = Path("models") / "whisper-base"
-    base_url = f"https://huggingface.co/{repo_id}/resolve/main/"
+    base_url = f"{HF_ENDPOINT}/{repo_id}/resolve/main/"
 
     print(f"\n{PACKAGE} Downloading whisper-base for feature extractor (offline usage)")
 
@@ -505,6 +530,16 @@ Examples:
     parser.add_argument("--force", action="store_true", help="Force re-download even if models already exist")
 
     parser.add_argument(
+        "--endpoint",
+        type=str,
+        help=(
+            "HuggingFace-compatible endpoint. Official: https://huggingface.co ; "
+            "China mirror (recommended for CN network): https://hf-mirror.com ; "
+            "defaults to $HF_ENDPOINT or the official site."
+        ),
+    )
+
+    parser.add_argument(
         "--skip-vad", action="store_true", help="Skip downloading VAD model (not recommended, for testing only)"
     )
 
@@ -516,9 +551,20 @@ Examples:
 
     args = parser.parse_args()
 
+    # --endpoint 优先级高于环境变量 HF_ENDPOINT
+    global HF_ENDPOINT
+    if args.endpoint:
+        HF_ENDPOINT = normalize_endpoint(args.endpoint)
+
     print("=" * 60)
     print("Model Downloader for Faster Whisper Custom VAD")
     print("=" * 60)
+    print(f"Download source: {HF_ENDPOINT}")
+    fallback_preview = _fallback_url(HF_ENDPOINT + "/x")
+    if fallback_preview:
+        print(f"Fallback source: {fallback_preview.rsplit('/x', 1)[0]}")
+    else:
+        print("Fallback source: (none, custom endpoint)")
 
     models_dir = Path("models")
     models_dir.mkdir(exist_ok=True)
